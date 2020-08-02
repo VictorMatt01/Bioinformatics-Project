@@ -22,6 +22,8 @@ typedef struct thread_data
 	int wholegenome;
 	int cg;
 	int format;
+  int dflag;
+  int eflag;
 	HMM *hmm;
 	TRAIN *train;
 } thread_data;
@@ -36,7 +38,13 @@ int main (int argc, char **argv)
   char *obs_seq, *obs_head;
   TRAIN train;
   int wholegenome;
-  int format=0;
+  int dflag = 0;
+  char dflagpath[STRINGLEN] = "";
+  char eflagpath[STRINGLEN] = "";
+  int eflag = 0;
+  // ----------
+  int format=0; // The new interface won't use this argument anymore, TODO: Remove this in the program
+  // ----------
   FILE *fp_out, *fp_aa, *fp_dna, *fp;
   char hmm_file[STRINGLEN] = "";
   char out_header[STRINGLEN] = "";
@@ -86,61 +94,90 @@ int main (int argc, char **argv)
   strcpy(dstate_file, train_dir);
   strcat(dstate_file, "pwm");
 
-
   /* read command line argument */
+  /* 
   if (argc <= 8){    
     fprintf(stderr, "ERROR: You missed some parameters for input\n");
     print_usage();
     exit(EXIT_FAILURE);
-  }
+  } 
+  */
 
-  while ((c=getopt(argc, argv, "fs:o:w:t:p:")) != -1){
+  while ((c=getopt(argc, argv, "o:w:t:p:d:e:")) != -1){
     switch (c){
-    case 's':
-      strcpy(seq_file, optarg);
-      if (access(seq_file, F_OK)==-1){
-	fprintf(stderr, "ERROR: Sequence file [%s] does not exist\n", seq_file);
-	print_usage();
-	exit(EXIT_FAILURE);
-      }
-      break;  
-    case 'w':
-      wholegenome = atoi(optarg);
-      if (wholegenome != 0 && wholegenome != 1){
-	fprintf(stderr, "ERROR: An incorrect value for the option -w was entered\n");
-	print_usage();
-	exit(EXIT_FAILURE);
-      }
-      break;
-    case 'p':
-      threadnum = atoi(optarg);
-      if (threadnum < 1){
-	fprintf(stderr, "ERROR: An incorrect value [%d] for the option -p was entered\n", threadnum);
-	print_usage();
-	exit(EXIT_FAILURE);
-      }
-      printf("Using %d threads.\n", threadnum);
-      break;
-    case 'o':
-      strcpy(out_header, optarg);
-      break;
-    case 't':
-      strcpy(train_file, optarg);
-      strcpy(hmm_file, train_dir);
-      strcat(hmm_file, train_file);
+      
+      // argument s, won't be used in the new interface
+      /* case 's':
+        strcpy(seq_file, optarg);
+      
+        if (access(seq_file, F_OK)==-1){
+	        fprintf(stderr, "ERROR: Sequence file [%s] does not exist\n", seq_file);
+	        print_usage();
+	        exit(EXIT_FAILURE);
+        }
+      
+        break;  
+        */ 
+    
+      // This is the same argument as in the old interface
+      case 'w':
+        wholegenome = atoi(optarg);
+        
+        if (wholegenome != 0 && wholegenome != 1){
+          fprintf(stderr, "ERROR: An incorrect value for the option -w was entered\n");
+          print_usage();
+          exit(EXIT_FAILURE);
+        }
+        
+        break;
+    
+      // This is the same argument as in the old interface
+      case 'p':
+        threadnum = atoi(optarg);
+        if (threadnum < 1){
+          fprintf(stderr, "ERROR: An incorrect value [%d] for the option -p was entered\n", threadnum);
+          print_usage();
+          exit(EXIT_FAILURE);
+        }
+        
+        //printf("Using %d threads.\n", threadnum);
+        break;
 
-      if (access(hmm_file, F_OK)==-1){
-	fprintf(stderr, "ERROR: The file for model parameters [%s] does not exist\n", hmm_file);
-	print_usage();
-	exit(EXIT_FAILURE);
-      }
-      break;
-    case 'f':
-      format = 1;
-      break;
+      // TODO: Moet nog veranderd worden in de nieuwe interface
+      case 'o':
+        strcpy(out_header, optarg);
+        break;
+    
+      // This is the same argument as in the old interface
+      case 't':
+        strcpy(train_file, optarg);
+        strcpy(hmm_file, train_dir);
+        strcat(hmm_file, train_file);
+
+        if (access(hmm_file, F_OK)==-1){
+          fprintf(stderr, "ERROR: The file for model parameters [%s] does not exist\n", hmm_file);
+          print_usage();
+          exit(EXIT_FAILURE);
+        }
+        
+        break;
+
+      // New argument in the new Interface
+      case 'd':
+        //printf("d flag is set to 1\n");
+        dflag = 1;
+        strcpy(dflagpath, optarg);
+        break;
+
+      // New argument in the new Interface
+      case 'e':
+        //printf("e flag is set to 1\n");
+        eflag = 1;
+        strcpy(eflagpath, optarg);
+        break;
     }
   }
-
+    
   
   /* check whether the specified files exist */
   if (access(mstate_file, F_OK)==-1){
@@ -215,14 +252,16 @@ int main (int argc, char **argv)
   thread = (pthread_t*)malloc(sizeof(thread) * threadnum);
   memset(thread, '\0', sizeof(thread) * threadnum);
   void *status;
-  fp = fopen (seq_file, "r");
+  // new interface, the input file is given in stdin as a stream
+  fp = stdin;
+  
   while ( fgets (mystring , sizeof mystring , fp) ){
     if (mystring[0] == '>'){
       count++;
     }
   }
   obs_seq_len = (int *)malloc(count * sizeof(int));
-  printf("no. of seqs: %d\n", count);  
+  //printf("no. of seqs: %d\n", count);  
 
   i = 0;
   count = 0;
@@ -237,7 +276,7 @@ int main (int argc, char **argv)
     }else{
       bp_count = strlen(mystring);
       while(mystring[bp_count-1] == 10 || mystring[bp_count-1]==13){
-	bp_count --;
+        bp_count --;
       }
 
       i += bp_count;
@@ -335,18 +374,22 @@ int main (int argc, char **argv)
     /* create output file name */
     strcpy(aa_file, out_header);
     strcat(aa_file, ".faa");
+    remove (aa_file);
+    fp_aa = fopen (aa_file , "w");
+
+    // special argument -d
+    //if(dflag){}
     strcpy(dna_file, out_header);
     strcat(dna_file, ".ffn");
+    remove (dna_file);
+    fp_dna = fopen (dna_file , "w");
+
+    // special argument -e
+    //if(eflag){}
     strcpy(out_file, out_header);
     strcat(out_file, ".out");
-
     remove (out_file);
-    remove (aa_file);
-    remove (dna_file);
-
-    fp_aa = fopen (aa_file , "w");
     fp_out = fopen (out_file , "w");
-    fp_dna = fopen (dna_file , "w");
 
     lastline = (char**)malloc(sizeof(char*) * threadnum);
     memset(lastline, '\0', sizeof(char*) * threadnum);
@@ -354,10 +397,16 @@ int main (int argc, char **argv)
     memset(currline, '\0', sizeof(char*) * threadnum);
     for (i = 0; i < threadnum; i++)
     {
+      // sepcial argument -e
+      // if(eflag){}
       sprintf(mystring, "%s.out.tmp.%d", out_header, i);
       threadarr[i].out = fopen(mystring, "r");
+      
       sprintf(mystring, "%s.faa.tmp.%d", out_header, i);
       threadarr[i].aa = fopen(mystring, "r");
+      
+      // special argument -d
+      // if(dflag){}
       sprintf(mystring, "%s.ffn.tmp.%d", out_header, i);
       threadarr[i].dna = fopen(mystring, "r");
 
@@ -368,6 +417,8 @@ int main (int argc, char **argv)
     }
 
     // Organize out file
+    // special argument -e
+    // if(eflag){}
     while (1)
     {
       j = 0;
@@ -400,7 +451,9 @@ int main (int argc, char **argv)
         break;
       }
     }
+
     // Organize faa file
+    // need to be redirected to stdout
     for (i = 0; i < threadnum; i++)
     {
       lastline[i][0] = '\0';
@@ -439,6 +492,7 @@ int main (int argc, char **argv)
     }
 
     // Organize dna file
+    // special argument -d
     for (i = 0; i < threadnum; i++)
     {
       lastline[i][0] = '\0';
@@ -478,15 +532,20 @@ int main (int argc, char **argv)
 
     for (i = 0; i < threadnum; i++)
     {
+      //special argument -e
       fclose(threadarr[i].out);
-      fclose(threadarr[i].aa);
-      fclose(threadarr[i].dna);
       sprintf(mystring, "%s.out.tmp.%d", out_header, i);
       remove(mystring);
+
+      fclose(threadarr[i].aa);
       sprintf(mystring, "%s.faa.tmp.%d", out_header, i);
       remove(mystring);
+
+      // special argument -d
+      fclose(threadarr[i].dna);
       sprintf(mystring, "%s.ffn.tmp.%d", out_header, i);
       remove(mystring);
+      
       free(threadarr[i].hmm);
       free(threadarr[i].train);
       free(lastline[i]);
