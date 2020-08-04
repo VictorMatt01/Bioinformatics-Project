@@ -9,7 +9,7 @@
 void dump_memory(void *p, int size);
 
 void viterbi(HMM *hmm_ptr, TRAIN *train_ptr, char *O, FILE *fp_out, FILE *fp_aa, FILE *fp_dna,
-char *head, int whole_genome, int cg, int format){
+char *head, int whole_genome, int cg, int format, int eflag, int dflag){
   double max_dbl = 10000000000.0;
   int debug=0;
 
@@ -30,7 +30,7 @@ char *head, int whole_genome, int cg, int format){
   int best;
   int from, from0, to;   /*from0: i-2 position, from: i-1 position */
   int from2;             /* from2: i-2, i-1 for condition in emission
-probability */
+  probability */
   double temp_alpha, temp, prob, prob2;
   int len_seq;
   int gene_len;
@@ -773,7 +773,10 @@ probability */
   /***********************************************************/
 
   head_short = strtok(head, delimi);
-  fprintf(fp_out, "%s\n", head_short); //use head_short, Ye, April 22, 2016
+  if(eflag){
+	  fprintf(fp_out, "%s\n", head_short); //use head_short, Ye, April 22, 2016
+  }
+  
 
   /* find the state for O[N] with the highest probability */
   prob = max_dbl;
@@ -908,16 +911,19 @@ probability */
  	  }
 	   
 	  dna_end_t = end_t;
-	  fprintf(fp_out, "%d\t%d\t+\t%d\t%lf\t", dna_start_t, dna_end_t, frame, final_score);
-	  fprintf(fp_out, "I:");
-	  for (i=0; i<insert_id; i++){
-	    fprintf(fp_out, "%d,", insert[i]);
+	  if(eflag){
+		fprintf(fp_out, "%d\t%d\t+\t%d\t%lf\t", dna_start_t, dna_end_t, frame, final_score);
+		fprintf(fp_out, "I:");
+		for (i=0; i<insert_id; i++){
+			fprintf(fp_out, "%d,", insert[i]);
+		}
+		fprintf(fp_out, "\tD:");
+		for (i=0; i<delete_id; i++){
+			fprintf(fp_out, "%d,", delete[i]);
+		}
+		fprintf(fp_out, "\n");
 	  }
-	  fprintf(fp_out, "\tD:");
-	  for (i=0; i<delete_id; i++){
-	    fprintf(fp_out, "%d,", delete[i]);
-	  }
-	  fprintf(fp_out, "\n");
+	  
 
 	  //update dna before calling get_protein, YY July 2018
   	  dna[0] = '\0';
@@ -933,14 +939,19 @@ probability */
 	  }
 	  */
 	  fprintf(fp_aa, "%s_%d_%d_+\n", head_short, dna_start_t, dna_end_t);
-	  fprintf(fp_dna, "%s_%d_%d_+\n", head_short, dna_start_t, dna_end_t);
-	  fprintf(fp_aa, "%s\n", protein);
-
-	  if (format==0){
-	    fprintf(fp_dna, "%s\n", dna);
-	  }else if (format==1){
-	    fprintf(fp_dna, "%s\n", dna_f);
+	  if(dflag){
+		fprintf(fp_dna, "%s_%d_%d_+\n", head_short, dna_start_t, dna_end_t);
 	  }
+	  fprintf(fp_aa, "%s\n", protein);
+	  
+	  if(dflag){
+		if (format==0){
+	    	fprintf(fp_dna, "%s\n", dna);
+	  	}else if (format==1){
+	    	fprintf(fp_dna, "%s\n", dna_f);
+	  	}
+	  }
+	  
 	}else if (codon_start==-1){
 	  if(refine) { //add refinement of the start codons here, Ye, April 16, 2016
   	    int end_old = end_t; //reverse
@@ -976,16 +987,19 @@ probability */
  	  }
 
 	  dna_end_t = end_t;
-	  fprintf(fp_out, "%d\t%d\t-\t%d\t%lf\t", dna_start_t_withstop, dna_end_t, frame, final_score);
-	  fprintf(fp_out, "I:");
-	  for (i=0; i<insert_id; i++){
-	    fprintf(fp_out, "%d,", insert[i]);
+	  if(eflag){
+		fprintf(fp_out, "%d\t%d\t-\t%d\t%lf\t", dna_start_t_withstop, dna_end_t, frame, final_score);
+		fprintf(fp_out, "I:");
+		for (i=0; i<insert_id; i++){
+			fprintf(fp_out, "%d,", insert[i]);
+		}
+		fprintf(fp_out, "\tD:");
+		for (i=0; i<delete_id; i++){
+			fprintf(fp_out, "%d,", delete[i]);
+		}
+		fprintf(fp_out, "\n");
 	  }
-	  fprintf(fp_out, "\tD:");
-	  for (i=0; i<delete_id; i++){
-	    fprintf(fp_out, "%d,", delete[i]);
-	  }
-	  fprintf(fp_out, "\n");
+	  
 
 	  //update dna before calling get_protein, YY July 2018
 	  //use dna_end_t & dna_start_w_withstop to avoid incomplete codons & include start/stop codons
@@ -997,16 +1011,21 @@ probability */
 	  get_protein(dna,protein,-1, whole_genome); //YY July 18, 2018, introduce adjust
 
 	  fprintf(fp_aa, "%s_%d_%d_-\n", head_short, dna_start_t_withstop, dna_end_t);
-	  fprintf(fp_dna, "%s_%d_%d_-\n", head_short, dna_start_t_withstop, dna_end_t);
+	  if(dflag){
+	  	fprintf(fp_dna, "%s_%d_%d_-\n", head_short, dna_start_t_withstop, dna_end_t);
+	  }
 
 	  get_rc_dna(dna, dna1);
 	  get_rc_dna_indel(dna_f, dna_f1);
 	  fprintf(fp_aa, "%s\n", protein);
-	  if (format==0){
-	    fprintf(fp_dna, "%s\n", dna1);
-	  }else if (format==1){
-	    fprintf(fp_dna, "%s\n", dna_f1);
+	  if(dflag){
+		if (format==0){
+	   		fprintf(fp_dna, "%s\n", dna1);
+	  	}else if (format==1){
+	    	fprintf(fp_dna, "%s\n", dna_f1);
+	  	}
 	  }
+	  
 	}
       }
       codon_start=0;
@@ -1086,29 +1105,19 @@ int get_prob_from_cg(HMM *hmm_ptr, TRAIN *train_ptr, char *O){ //change from voi
    }
 
   memcpy(hmm_ptr->e_M, train_ptr->trans[cg_count], sizeof(hmm_ptr->e_M));
-  memcpy(hmm_ptr->e_M_1, train_ptr->rtrans[cg_count],
-sizeof(hmm_ptr->e_M_1));
-  memcpy(hmm_ptr->tr_R_R, train_ptr->noncoding[cg_count],
-sizeof(hmm_ptr->tr_R_R));
+  memcpy(hmm_ptr->e_M_1, train_ptr->rtrans[cg_count], sizeof(hmm_ptr->e_M_1));
+  memcpy(hmm_ptr->tr_R_R, train_ptr->noncoding[cg_count], sizeof(hmm_ptr->tr_R_R));
   memcpy(hmm_ptr->tr_S, train_ptr->start[cg_count], sizeof(hmm_ptr->tr_S));
   memcpy(hmm_ptr->tr_E, train_ptr->stop[cg_count], sizeof(hmm_ptr->tr_E));
-  memcpy(hmm_ptr->tr_S_1, train_ptr->start1[cg_count],
-sizeof(hmm_ptr->tr_S_1));
-  memcpy(hmm_ptr->tr_E_1, train_ptr->stop1[cg_count],
-sizeof(hmm_ptr->tr_E_1));
-  memcpy(hmm_ptr->S_dist, train_ptr->S_dist[cg_count],
-sizeof(hmm_ptr->S_dist));
-  memcpy(hmm_ptr->E_dist, train_ptr->E_dist[cg_count],
-sizeof(hmm_ptr->E_dist));
-  memcpy(hmm_ptr->S1_dist, train_ptr->S1_dist[cg_count],
-sizeof(hmm_ptr->S1_dist));
-  memcpy(hmm_ptr->E1_dist, train_ptr->E1_dist[cg_count],
-sizeof(hmm_ptr->E1_dist));
+  memcpy(hmm_ptr->tr_S_1, train_ptr->start1[cg_count], sizeof(hmm_ptr->tr_S_1));
+  memcpy(hmm_ptr->tr_E_1, train_ptr->stop1[cg_count], sizeof(hmm_ptr->tr_E_1));
+  memcpy(hmm_ptr->S_dist, train_ptr->S_dist[cg_count], sizeof(hmm_ptr->S_dist));
+  memcpy(hmm_ptr->E_dist, train_ptr->E_dist[cg_count], sizeof(hmm_ptr->E_dist));
+  memcpy(hmm_ptr->S1_dist, train_ptr->S1_dist[cg_count], sizeof(hmm_ptr->S1_dist));
+  memcpy(hmm_ptr->E1_dist, train_ptr->E1_dist[cg_count], sizeof(hmm_ptr->E1_dist));
  
   return cg_count;
 }
-
-
 
 void get_train_from_file(char *filename, HMM *hmm_ptr, char *mfilename, char *mfilename1, char *nfilename,
 			 char *sfilename,char *pfilename,char *s1filename,char *p1filename,char *dfilename, TRAIN *train_ptr){

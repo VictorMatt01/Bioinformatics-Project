@@ -322,8 +322,8 @@ void get_protein(char *dna, char *protein,  int strand, int whole_genome){
     }
   }else{
     int protein_len = dna_len/3;
-//comment out, July 18, 2018, YY (dna fixed outside of this function)
-/*
+  //comment out, July 18, 2018, YY (dna fixed outside of this function)
+  /*
     if (dna_len % 3 == 2){
       dna_len -= 2;
       offpos = 2;
@@ -331,7 +331,7 @@ void get_protein(char *dna, char *protein,  int strand, int whole_genome){
       dna_len -= 1;
       offpos = 1;
     }
-*/
+  */
     for (i=0; i<dna_len; i+=3){
       protein[(dna_len-i)/3-1] = anti_codon_code[trinucleotide_pep(dna[i], dna[i+1], dna[i+2])];
       protein_len --;
