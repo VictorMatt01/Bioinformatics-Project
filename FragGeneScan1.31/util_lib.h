@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 
+
 double **dmatrix(int num_row, int num_col);
 double *dvector(int nh);
 int **imatrix(int num_row, int num_col);

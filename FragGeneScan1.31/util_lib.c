@@ -154,30 +154,31 @@ int tr2int (char *tr){
   return result;
 }
 
-
+// aanpassing gedaan aan de code
 int nt2int (char nt){
 
   int result;
-
-  if      (nt == 'A' || nt == 'a'){  result = 0; }
-  else if (nt == 'C' || nt == 'c'){  result = 1; }
-  else if (nt == 'G' || nt == 'g'){  result = 2; }
-  else if (nt == 'T' || nt == 't'){  result = 3; }
-  else                            {  result = 4; }
+  // small change to only evaluate letters and no capital letters
+  char hulp = nt|0x20;
+  if      (hulp == 'a'){  result = 0; }
+  else if (hulp == 'c'){  result = 1; }
+  else if (hulp == 'g'){  result = 2; }
+  else if (hulp == 't'){  result = 3; }
+  else                 {  result = 4; }
 
   return result;
 }
 
-
+// aanpassing gedaan aan de code
 int nt2int_rc (char nt){
 
   int result;
-
-  if      (nt == 'A' || nt == 'a'){  result = 3; }
-  else if (nt == 'C' || nt == 'c'){  result = 2; }
-  else if (nt == 'G' || nt == 'g'){  result = 1; }
-  else if (nt == 'T' || nt == 't'){  result = 0; }
-  else                            {  result = 4; }
+  char hulp = nt|0x20;
+  if      (hulp == 'a'){  result = 3; }
+  else if (hulp == 'c'){  result = 2; }
+  else if (hulp == 'g'){  result = 1; }
+  else if (hulp == 't'){  result = 0; }
+  else                 {  result = 4; }
 
   return result;
 }
@@ -201,80 +202,86 @@ int nt2int_rc_indel (char nt){
   return result;
 }
 
-
+//aanpassing gedaan aan de code
 int trinucleotide (char a, char b, char c){
 
   int freq_id;
-
-  if      (a == 'A' || a == 'a'){  freq_id = 0;}
-  else if (a == 'C' || a == 'c'){  freq_id = 16;}
-  else if (a == 'G' || a == 'g'){  freq_id = 32;}
-  else if (a == 'T' || a == 't'){  freq_id = 48;}
+  char hulp_a = a|0x20;
+  if      (hulp_a == 'a'){  freq_id = 0;}
+  else if (hulp_a == 'c'){  freq_id = 16;}
+  else if (hulp_a == 'g'){  freq_id = 32;}
+  else if (hulp_a == 't'){  freq_id = 48;}
   else { freq_id = 0;}
 
-  if      (b == 'A' || b == 'a'){  freq_id += 0;}
-  else if (b == 'C' || b == 'c'){  freq_id += 4;}
-  else if (b == 'G' || b == 'g'){  freq_id += 8;}
-  else if (b == 'T' || b == 't'){  freq_id += 12;}
+  char hulp_b = b|0x20;
+  if      (hulp_b == 'a'){  freq_id += 0;}
+  else if (hulp_b == 'c'){  freq_id += 4;}
+  else if (hulp_b == 'g'){  freq_id += 8;}
+  else if (hulp_b == 't'){  freq_id += 12;}
   else {freq_id = 0;}
-
-  if      (c == 'A' || c == 'a'){  freq_id += 0;}
-  else if (c == 'C' || c == 'c'){  freq_id += 1;}
-  else if (c == 'G' || c == 'g'){  freq_id += 2;}
-  else if (c == 'T' || c == 't'){  freq_id += 3;}
+  
+  char hulp_c = c|0x20;
+  if      (hulp_c == 'a'){  freq_id += 0;}
+  else if (hulp_c == 'c'){  freq_id += 1;}
+  else if (hulp_c == 'g'){  freq_id += 2;}
+  else if (hulp_c == 't'){  freq_id += 3;}
   else {freq_id = 0;}
 
   return freq_id;
 }
 
+//aanpassing gedaan aan de code
 int trinucleotide_pep (char a, char b, char c){
 
   int freq_id;
-
-  if      (a == 'A' || a == 'a'){  freq_id = 0;}
-  else if (a == 'C' || a == 'c'){  freq_id = 16;}
-  else if (a == 'G' || a == 'g'){  freq_id = 32;}
-  else if (a == 'T' || a == 't'){  freq_id = 48;}
+  char hulp_a = a|0X20;
+  if      (hulp_a == 'a'){  freq_id = 0;}
+  else if (hulp_a == 'c'){  freq_id = 16;}
+  else if (hulp_a == 'g'){  freq_id = 32;}
+  else if (hulp_a == 't'){  freq_id = 48;}
   else { freq_id = 64;}
 
+  char hulp_b = b|0X20;
   if (freq_id <64){
-    if      (b == 'A' || b == 'a'){  freq_id += 0;}
-    else if (b == 'C' || b == 'c'){  freq_id += 4;}
-    else if (b == 'G' || b == 'g'){  freq_id += 8;}
-    else if (b == 'T' || b == 't'){  freq_id += 12;}
+    if      (hulp_b == 'a'){  freq_id += 0;}
+    else if (hulp_b == 'c'){  freq_id += 4;}
+    else if (hulp_b == 'g'){  freq_id += 8;}
+    else if (hulp_b == 't'){  freq_id += 12;}
     else {freq_id = 64;}
   }
 
+  char hulp_c = c|0x20;
   if (freq_id < 64){
-    if      (c == 'A' || c == 'a'){  freq_id += 0;}
-    else if (c == 'C' || c == 'c'){  freq_id += 1;}
-    else if (c == 'G' || c == 'g'){  freq_id += 2;}
-    else if (c == 'T' || c == 't'){  freq_id += 3;}
+    if      (hulp_c == 'a'){  freq_id += 0;}
+    else if (hulp_c == 'c'){  freq_id += 1;}
+    else if (hulp_c == 'g'){  freq_id += 2;}
+    else if (hulp_c == 't'){  freq_id += 3;}
     else {freq_id = 64;}
   }
   return freq_id;
 }
 
+// aanpassing gedaan aan de code
 void get_rc_dna(char *dna, char *dna1){
 
   char codon[5] = {'A', 'C', 'G', 'T', 'N'};
-  int i;
+
   int dna_len = strlen(dna);
-  for (i=0; i<dna_len; i++){
-    
+  int i = dna_len+1;
+  do{
     dna1[dna_len-i-1] =codon[nt2int_rc(dna[i])];
-  }
+  }while(--i);
 }
 
 void get_rc_dna_indel(char *dna, char *dna1){
 
   char codon[11] = {'A', 'C', 'G', 'T', 'N', 'a', 'c', 'g', 't', 'n', 'x'};
-  int i;
+  
   int dna_len = strlen(dna);
-  for (i=0; i<dna_len; i++){
-    
+  int i = dna_len+1;
+  do{
     dna1[dna_len-i-1] =codon[nt2int_rc_indel(dna[i])];
-  }
+  }while(--i);
 }
 
 
@@ -322,25 +329,15 @@ void get_protein(char *dna, char *protein,  int strand, int whole_genome){
     }
   }else{
     int protein_len = dna_len/3;
-  //comment out, July 18, 2018, YY (dna fixed outside of this function)
-  /*
-    if (dna_len % 3 == 2){
-      dna_len -= 2;
-      offpos = 2;
-    }else if (dna_len % 3 == 1){
-      dna_len -= 1;
-      offpos = 1;
-    }
-  */
+  
     for (i=0; i<dna_len; i+=3){
       protein[(dna_len-i)/3-1] = anti_codon_code[trinucleotide_pep(dna[i], dna[i+1], dna[i+2])];
       protein_len --;
     }
   }
-
-  if(protein[strlen(protein) - 1] == '*') { //remove the ending *
-    protein[strlen(protein) - 1] = 0;
-  }
+  // kleine aanpassing
+  int hulp_str_protein = strlen(protein)-1;
+  if(protein[hulp_str_protein] == '*') protein[hulp_str_protein] = 0; //remove the ending *
 
   //alternative start codons still encode for Met
   //E. coli uses 83% AUG (3542/4284), 14% (612) GUG, 3% (103) UUG and one or two others (e.g., an AUU and possibly a CUG)
@@ -348,15 +345,15 @@ void get_protein(char *dna, char *protein,  int strand, int whole_genome){
   if(whole_genome == 0) return; //short reads, skip
   if(strand == 1) {
   	int s = trinucleotide_pep(dna[0], dna[1], dna[2]); 
-	if(s == trinucleotide_pep('G', 'T', 'G') || s == trinucleotide_pep('T', 'T', 'G')){
-		protein[0] = 'M';
-	}
+	  if(s == trinucleotide_pep('G', 'T', 'G') || s == trinucleotide_pep('T', 'T', 'G')){
+		  protein[0] = 'M';
+	  }
   }
   else {
   	int s = trinucleotide_pep(dna[dna_len - 3], dna[dna_len - 2], dna[dna_len - 1]); 
-	if(s == trinucleotide_pep('C', 'A', 'C') || s == trinucleotide_pep('C', 'A', 'A')) {
+	  if(s == trinucleotide_pep('C', 'A', 'C') || s == trinucleotide_pep('C', 'A', 'A')) {
 		protein[0] = 'M';
-	}
+	  }
   }
 }
 

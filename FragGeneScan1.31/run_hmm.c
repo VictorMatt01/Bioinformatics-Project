@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include "hmm.h"
+#include <unistd.h>
 
 #include <pthread.h>
 
@@ -32,7 +33,6 @@ void* thread_func(void *threadarr);
 
 int main (int argc, char **argv)
 {
-  clock_t start = clock();
   int i, j, c, max;
   HMM hmm;
   char *obs_seq, *obs_head;
@@ -61,10 +61,10 @@ int main (int argc, char **argv)
   char p1state_file[STRINGLEN] = "";
   char dstate_file[STRINGLEN] = "";
   char train_dir[STRINGLEN] = "";
-  int count=0;
+  int count=0; // total amount of sequences
   int currcount = 0;
   int total = 0;
-  char mystring[STRINGLEN] = "";
+  char mystring[STRINGLEN] = ""; // string for writing to output
   int *obs_seq_len;
   int bp_count;  /* count the length of each line in input file */
 
@@ -74,6 +74,7 @@ int main (int argc, char **argv)
   thread_data *threadarr;
   char **lastline, **currline;
 
+  // Init some important files for the viterbi algortihm
   strncpy(train_dir, argv[0], strlen(argv[0])-11);
   strcat(train_dir, "train/");
   strcpy(mstate_file, train_dir);
@@ -93,31 +94,8 @@ int main (int argc, char **argv)
   strcpy(dstate_file, train_dir);
   strcat(dstate_file, "pwm");
 
-  /* read command line argument */
-  /* 
-  if (argc <= 8){    
-    fprintf(stderr, "ERROR: You missed some parameters for input\n");
-    print_usage();
-    exit(EXIT_FAILURE);
-  } 
-  */
-
   while ((c=getopt(argc, argv, "w:t:p:d:e:")) != -1){
     switch (c){
-      
-      // argument s, won't be used in the new interface
-      /* case 's':
-        strcpy(seq_file, optarg);
-      
-        if (access(seq_file, F_OK)==-1){
-	        fprintf(stderr, "ERROR: Sequence file [%s] does not exist\n", seq_file);
-	        print_usage();
-	        exit(EXIT_FAILURE);
-        }
-      
-        break;  
-        */ 
-    
       // This is the same argument as in the old interface
       case 'w':
         wholegenome = atoi(optarg);
@@ -138,19 +116,11 @@ int main (int argc, char **argv)
           print_usage();
           exit(EXIT_FAILURE);
         }
-        
-        //printf("Using %d threads.\n", threadnum);
         break;
-
-      // TODO: Moet nog veranderd worden in de nieuwe interface
-      // case 'o':
-      //   strcpy(out_header, optarg);
-      //   break;
     
       // This is the same argument as in the old interface
       case 't':
         strcpy(train_file, optarg);
-        //strcpy(hmm_file, train_dir);
         strcat(hmm_file, train_file);
 
         if (access(hmm_file, F_OK)==-1){
@@ -163,14 +133,12 @@ int main (int argc, char **argv)
 
       // New argument in the new Interface
       case 'd':
-        //printf("d flag is set to 1\n");
         dflag = 1;
         strcpy(dflagpath, optarg);
         break;
 
       // New argument in the new Interface
       case 'e':
-        //printf("e flag is set to 1\n");
         eflag = 1;
         strcpy(eflagpath, optarg);
         break;
@@ -608,9 +576,6 @@ int main (int argc, char **argv)
     if(dflag) fclose(fp_dna);
     fclose(fp);
   }
-
-  clock_t end = clock();
-  //printf("Clock time used (by %d threads) = %.2f mins\n", threadnum, (end - start) / (60.0 * CLOCKS_PER_SEC));
 }
 
 
