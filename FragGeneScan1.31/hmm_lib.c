@@ -9,181 +9,178 @@
 void dump_memory(void *p, int size);
 
 void viterbi(HMM *hmm_ptr, TRAIN *train_ptr, char *O, FILE *fp_out, FILE *fp_aa, FILE *fp_dna,
-char *head, int whole_genome, int cg, int format, int eflag, int dflag){
-  double max_dbl = 10000000000.0;
-  int debug=0;
+	char *head, int whole_genome, int cg, int format, int eflag, int dflag){
+	
+	double max_dbl = 10000000000.0;
 
-  int *vpath;                          /* optimal path after backtracking */
-  double **alpha;                      /* viterbi prob array */
-  int **path;                          /* viterbi path array */
-  int i,j,l,m,n, x,y,z,t,jj,kk;
-  int temp_t;
-  int ag_num;
+	int *vpath;                          /* optimal path after backtracking */
+	double **alpha;                      /* viterbi prob array */
+	int **path;                          /* viterbi path array */
+	int i,j,l,m,n, x,y,z,t,jj,kk;
+	int temp_t;
 
-  int orf_start=0;
-  int orf_strand=0;
-  int print_save;
-  int frame_save;
-  int orf_save;
-  double prob_save, start_freq;
+	double start_freq;
 
-  int best;
-  int from, from0, to;   /*from0: i-2 position, from: i-1 position */
-  int from2;             /* from2: i-2, i-1 for condition in emission probability */
-  double temp_alpha, temp, prob, prob2;
-  int len_seq;
-  int gene_len;
-  int count_ag;
+	int from, from0, to;   /*from0: i-2 position, from: i-1 position */
+	int from2;             /* from2: i-2, i-1 for condition in emission probability */
+	double temp_alpha, temp, prob;
+	int len_seq;
+	int gene_len;
 
-  int temp_strand;
-  int num_d;          /* the number of delete */
-  int freq_id;
-  double h_kd, r_kd, p_kd;
+	int num_d;          /* the number of delete */
+	int freq_id;
+	double h_kd, r_kd, p_kd;
 
-  int codon_start;
-  char dna_tmp[300000];
-  char dna[300000];
-  char dna1[300000];
-  char dna_f[300000];
-  char dna_f1[300000];
-  char protein[100000];
-  int dna_id=0;
-  int dna_f_id=0;
-  int out_nt;
-  int start_t, dna_start_t, dna_start_t_withstop;
-  int end_t, dna_end_t;
-  int prev_match;
-  int start_orf;
-  int frame;
-  double final_score;
+	int codon_start;
+	char dna[300000];
+	char dna1[300000];
+	char dna_f[300000];
+	char dna_f1[300000];
+	char protein[100000];
+	int dna_id=0;
+	int dna_f_id=0;
+	int out_nt;
+	int start_t, dna_start_t, dna_start_t_withstop;
+	int end_t, dna_end_t;
+	int prev_match;
+	int start_orf;
+	int frame;
+	double final_score;
 
-  int insert[100];
-  int delete[100];
-  int insert_id, delete_id;
-  char *head_short=NULL;
-  char delimi[] = " ";
+	int insert[100];
+	int delete[100];
+	int insert_id, delete_id;
+	char *head_short=NULL;
+	char delimi[] = " ";
 
-  int temp_i[6] = {0,0,0,0,0,0};
-  int temp_i_1[6] = {0,0,0,0,0,0};
+	int temp_i[6] = {0,0,0,0,0,0};
+	int temp_i_1[6] = {0,0,0,0,0,0};
 
-  int num_N=0;
-  /***************************************************************/
-  /* initialize                                                  */
-  /***************************************************************/
-  int refine = 0;
-  gene_len = 60;
-  if (whole_genome==1){
-    gene_len = 120;
-    refine = 1;
-  }
+	int num_N=0;
+	/***************************************************************/
+	/* initialize                                                  */
+	/***************************************************************/
+	int refine = 0;
+	gene_len = 60;
+	if (whole_genome==1){
+		gene_len = 120;
+		refine = 1;
+	}
 
-  len_seq = strlen(O);
-  alpha = (double **)dmatrix(hmm_ptr->N, len_seq);
-  path = (int **)imatrix(hmm_ptr->N, len_seq);
-  vpath = (int *)ivector(len_seq);
+	len_seq = strlen(O);
+	alpha = (double **)dmatrix(hmm_ptr->N, len_seq);
+	path = (int **)imatrix(hmm_ptr->N, len_seq);
+	vpath = (int *)ivector(len_seq);
 
-  for (i=0; i<hmm_ptr->N; i++){
-    alpha[i][0] = -1 * hmm_ptr->pi[i];
-  }
+	for (i=0; i<hmm_ptr->N; i++){
+		alpha[i][0] = -1 * hmm_ptr->pi[i];
+	}
 
-  double log53 = log(0.53);
-  double log16 = log(0.16);
-  double log30 = log(0.30);
-  double log25 = log(0.25);
-  double log95 = log(0.95);
-  double log54 = log(0.54);
-  double log83 = log(0.83);
-  double log07 = log(0.07);
+	double log53 = log(0.53);
+	double log16 = log(0.16);
+	double log30 = log(0.30);
+	double log25 = log(0.25);
+	double log95 = log(0.95);
+	double log54 = log(0.54);
+	double log83 = log(0.83);
+	double log07 = log(0.07);
 
-  /* stop state */
-  if ((O[0] == 'T'|| O[0] == 't')  &&
-      (((O[1] == 'A'|| O[1] == 'a') && (O[2] == 'A'|| O[2] == 'a')) ||
-       ((O[1] == 'A'|| O[1] == 'a') && (O[2] == 'G'|| O[2] == 'g')) ||
-       ((O[1] == 'G'|| O[1] == 'g') && (O[2] == 'A'|| O[2] == 'a')))) {
+	/* stop state */
+	char hulp_0 = O[0]|0x20;
+	char hulp_1 = O[1]|0x20;
+	char hulp_2 = O[2]|0x20;
 
-	alpha[E_STATE][0] = max_dbl;
-    alpha[E_STATE][1] = max_dbl;
-    path[E_STATE][1] = E_STATE;
-    path[E_STATE][2] = E_STATE;
+  	if ((hulp_0 == 't')  &&
+      (((hulp_1 == 'a') && (hulp_2 == 'a')) ||
+       ((hulp_1 == 'a') && (hulp_2 == 'g')) ||
+       ((hulp_1 == 'g') && (hulp_2 == 'a')))) {
 
-    alpha[M6_STATE][2] = max_dbl;
-    alpha[M5_STATE][1] = max_dbl;
-    alpha[M4_STATE][0] = max_dbl;
-    alpha[M3_STATE][2] = max_dbl;
-    alpha[M2_STATE][1] = max_dbl;
-    alpha[M1_STATE][0] = max_dbl;
+		alpha[E_STATE][0] = max_dbl;
+		alpha[E_STATE][1] = max_dbl;
+		path[E_STATE][1] = E_STATE;
+		path[E_STATE][2] = E_STATE;
 
-    if ((O[1] == 'A'|| O[1] == 'a') && (O[2] == 'A'|| O[2] == 'a')){
-      alpha[E_STATE][2] = alpha[E_STATE][2] - log53;
-    }else if ((O[1] == 'A'|| O[1] == 'a') && (O[2] == 'G'|| O[2] == 'g')){
-      alpha[E_STATE][2] = alpha[E_STATE][2] - log16;
-    }else if((O[1] == 'G'|| O[1] == 'g') && (O[2] == 'A'|| O[2] == 'a')){
-      alpha[E_STATE][2] = alpha[E_STATE][2] - log30;
-    }
-  }
+		alpha[M6_STATE][2] = max_dbl;
+		alpha[M5_STATE][1] = max_dbl;
+		alpha[M4_STATE][0] = max_dbl;
+		alpha[M3_STATE][2] = max_dbl;
+		alpha[M2_STATE][1] = max_dbl;
+		alpha[M1_STATE][0] = max_dbl;
 
-  /* other stop state*/
-  if ((O[2] == 'A'|| O[0] == 'a')  &&
-      (((O[0] == 'T'|| O[0] == 't') && (O[1] == 'T'|| O[1] == 't')) ||
-       ((O[0] == 'C'|| O[0] == 'c') && (O[1] == 'T'|| O[1] == 't')) ||
-       ((O[0] == 'T'|| O[0] == 't') && (O[1] == 'C'|| O[1] == 'c')))) {
+		if ((hulp_1 == 'a') && (hulp_2 == 'a')){
+			alpha[E_STATE][2] = alpha[E_STATE][2] - log53;
+		}else if ((hulp_1 == 'a') && (hulp_2 == 'g')){
+			alpha[E_STATE][2] = alpha[E_STATE][2] - log16;
+		}else if((hulp_1 == 'g') && (hulp_2 == 'a')){
+			alpha[E_STATE][2] = alpha[E_STATE][2] - log30;
+		}
+  	}
 
-    alpha[S_STATE_1][0] = max_dbl;
-    alpha[S_STATE_1][1] = max_dbl;
-    alpha[S_STATE_1][2] = alpha[S_STATE][0];
-    path[S_STATE_1][1] = S_STATE_1;
-    path[S_STATE_1][2] = S_STATE_1;
+	/* other stop state*/
+	if ((hulp_2 == 'a')  &&
+		(((hulp_0 == 't') && (hulp_1 == 't')) ||
+		((hulp_0 == 'c') && (hulp_1 == 't')) ||
+		((hulp_0 == 't') && (hulp_1== 'c')))) {
 
-    alpha[M3_STATE_1][2] = max_dbl;
-    alpha[M6_STATE_1][2] = max_dbl;
+		alpha[S_STATE_1][0] = max_dbl;
+		alpha[S_STATE_1][1] = max_dbl;
+		alpha[S_STATE_1][2] = alpha[S_STATE][0];
+		path[S_STATE_1][1] = S_STATE_1;
+		path[S_STATE_1][2] = S_STATE_1;
 
-    if ((O[0] == 'T'|| O[0] == 't') && (O[1] == 'T'|| O[1] == 't')){
-      alpha[S_STATE_1][2] = alpha[S_STATE_1][2] - log53;
-    }else if ((O[0] == 'C'|| O[0] == 'c') && (O[1] == 'T'|| O[1] == 't')){
-      alpha[S_STATE_1][2] = alpha[S_STATE_1][2] - log16;
-    }else if((O[0] == 'T'|| O[0] == 't') && (O[1] == 'C'|| O[1] == 'c')){
-      alpha[S_STATE_1][2] = alpha[S_STATE_1][2] - log30;
-    }
-  }
+		alpha[M3_STATE_1][2] = max_dbl;
+		alpha[M6_STATE_1][2] = max_dbl;
 
-  /******************************************************************/
-  /*  fill out the rest of the columns                              */
-  /******************************************************************/
-  
-  // One for loop with a lot of code in
-  for (t = 1; t < len_seq; t++) {
-    from = nt2int(O[t-1]);
-    if (t>1){
-      from0 = nt2int(O[t-2]);
-    }else{
-      from0 = 2;
-    }
-    to = nt2int(O[t]);
+		if ((hulp_0 == 't') && (hulp_1 == 't')){
+			alpha[S_STATE_1][2] = alpha[S_STATE_1][2] - log53;
+		}else if ((hulp_0 == 'c') && (hulp_1 == 't')){
+			alpha[S_STATE_1][2] = alpha[S_STATE_1][2] - log16;
+		}else if((hulp_0 == 't') && (hulp_1 == 'c')){
+			alpha[S_STATE_1][2] = alpha[S_STATE_1][2] - log30;
+		}
+	}
 
-    /* if DNA is other than ACGT, do it later */
-    if (from==4){ from=2; }
-    if (from0==4){ from0=2; }
-    if (to==4){
-      to=2;
-      num_N += 1;
-    }else{
-      num_N=0;
-    }
-    from2 = from0*4+from;
+  	/******************************************************************/
+	/*  fill out the rest of the columns                              */
+	/******************************************************************/
+	
+	// One for loop with a lot of code in
+	for (t = 1; t < len_seq; t++) {
+		
+		from = nt2int(O[t-1]);
 
-    /******************/
-    /* M state        */
-    /******************/
+		from0 = 2;
+		if (t>1) from0 = nt2int(O[t-2]);
+		
+		to = nt2int(O[t]);
 
-    for (i=M1_STATE; i<=M6_STATE; i++)   {
+		/* if DNA is other than ACGT, do it later */
+		if (from==4) from=2;
+		if (from0==4) from0=2;
+		num_N=0;
+		if (to==4){
+			to=2;
+			num_N += 1;
+		}
+		from2 = from0*4+from;
 
-    	if (alpha[i][t]<max_dbl){
 
-			if (t==0){
+		char hulp_t_0 = 	O[t]   | 0x20;
+		char hulp_t_1 = 	O[t+1] | 0x20;
+		char hulp_t_2 = 	O[t+2] | 0x20;
+		char hulp_t_min_1 = O[t-1] | 0x20;
+		char hulp_t_min_2 = O[t-2] | 0x20;
+		char hulp_t_min_3 = O[t-3] | 0x20;
 
-			}else{
+		/******************/
+		/* M state        */
+		/******************/
 
-	  			if (i==M1_STATE){
+		for (i=M1_STATE; i<=M6_STATE; i++) { // 5->10 
+
+			if (alpha[i][t]<max_dbl){
+			
+				if (i==M1_STATE){
 					/* from M state */
 					j = M6_STATE;
 					alpha[i][t] = alpha[j][t-1] - hmm_ptr->tr[TR_GG] - hmm_ptr->tr[TR_MM] - hmm_ptr->e_M[0][from2][to];
@@ -192,6 +189,7 @@ char *head, int whole_genome, int cg, int format, int eflag, int dflag){
 					/* from D state */
 					if (whole_genome==0){
 						for (j=M5_STATE; j>=M1_STATE; j--){
+
 							if (j >= i ){
 								num_d = i-j+6;
 							}else if (j+1<i){
@@ -199,6 +197,7 @@ char *head, int whole_genome, int cg, int format, int eflag, int dflag){
 							}else{
 								num_d = -10;
 							}
+								
 							if(num_d>0){
 								temp_alpha = alpha[j][t-1] - hmm_ptr->tr[TR_MD] - hmm_ptr->e_M[0][from2][to] - log25*(num_d-1) - hmm_ptr->tr[TR_DD]*(num_d-2) - hmm_ptr->tr[TR_DM];
 								if ( temp_alpha < alpha[i][t]){
@@ -216,7 +215,7 @@ char *head, int whole_genome, int cg, int format, int eflag, int dflag){
 						path[i][t] = S_STATE;
 					}
 
-	  			}else{   /*i ==M2-M6*/
+				}else{   /*i ==M2-M6*/
 
 					/* from M state */
 					j = i - 1;
@@ -243,47 +242,45 @@ char *head, int whole_genome, int cg, int format, int eflag, int dflag){
 							}
 						}
 					}
-	 			}
-
-				/* from I state */
-				if (i==M1_STATE) { 
-					j = I6_STATE;
-				} else { 
-					j = I1_STATE + (i - M1_STATE -1); 
 				}
 
+				/* from I state */
+				j = I1_STATE + (i - M1_STATE -1);
+				if (i==M1_STATE) j = I6_STATE;
 
+				
+				char temp_hulp = O[temp_i[j-I1_STATE]] | 0x20;
+				char temp_hulp_1 = O[temp_i[j-I1_STATE]-1] | 0x20;
 				/* to aviod stop codon */
 				if (t<2){
+					// NO CODE
 
-				}else if((i==M2_STATE || i==M5_STATE) && (O[temp_i[j-I1_STATE]] == 'T'||O[temp_i[j-I1_STATE]] =='t') &&
-				(((O[t] == 'A'||O[t] == 'a') && (O[t+1] =='A'||O[t+1] =='a')) ||
-					((O[t] == 'A'||O[t] == 'a') && (O[t+1] =='G'||O[t+1] =='g')) ||
-					((O[t] == 'G'||O[t] == 'g') && (O[t+1] =='A'||O[t+1] =='a')))){
+				}else if((i==M2_STATE || i==M5_STATE) && (temp_hulp =='t') &&
+					(((hulp_t_0 == 'a') && (hulp_t_1 =='a')) ||
+					((hulp_t_0 == 'a') && (hulp_t_1 =='g')) ||
+					((hulp_t_0 == 'g') && (hulp_t_1 =='a')))){
+					// NO CODE
 
-	  			}else if ((i==M3_STATE || i==M6_STATE) && (O[temp_i[j-I1_STATE]-1] == 'T'||O[temp_i[j-I1_STATE]-1] =='t') &&
-					(((O[temp_i[j-I1_STATE]] == 'A'||O[temp_i[j-I1_STATE]] == 'a') && (O[t] =='A'||O[t] == 'a')) ||
-					((O[temp_i[j-I1_STATE]] == 'A'||O[temp_i[j-I1_STATE]] == 'a') && (O[t] =='G'||O[t] == 'g')) ||
-					((O[temp_i[j-I1_STATE]] == 'G'||O[temp_i[j-I1_STATE]] == 'g') && (O[t] =='A'||O[t] == 'a')))){
-	 			
+				}else if ((i==M3_STATE || i==M6_STATE) && (temp_hulp_1 =='t') &&
+					(((temp_hulp == 'a') && (hulp_t_0 == 'a')) ||
+					((temp_hulp == 'a') && (hulp_t_0 == 'g')) ||
+					((temp_hulp == 'g') && (hulp_t_0 == 'a')))){
+					// NO CODE
+
 				}else{
 					temp_alpha = alpha[j][t-1]  - hmm_ptr->tr[TR_IM] - log25;
 					if ( temp_alpha < alpha[i][t]){
 						alpha[i][t] = temp_alpha;
 						path[i][t] = j;
-	   				}
-	  			}
+					}
+				}
 			}
-      	}
-    }
+		}
 
-    /******************/
-    /* I state        */
-    /******************/
-    for (i=I1_STATE; i<=I6_STATE; i++) {
-		if (t==0){
-      	
-		}else{
+		/******************/
+		/* I state        */
+		/******************/
+		for (i=I1_STATE; i<=I6_STATE; i++) { // 17 -> 22
 
 			/* from I state */
 			j = i;
@@ -292,10 +289,9 @@ char *head, int whole_genome, int cg, int format, int eflag, int dflag){
 
 			/* from M state */
 			j = i - I1_STATE + M1_STATE ;
+			temp_alpha = alpha[j][t-1]  - hmm_ptr->tr[TR_MI] - hmm_ptr->tr_M_I[from][to];
 			if (i==I6_STATE){
 				temp_alpha = alpha[j][t-1] - hmm_ptr->tr[TR_GG] - hmm_ptr->tr[TR_MI] -hmm_ptr->tr_M_I[from][to];
-			}else{
-				temp_alpha = alpha[j][t-1]  - hmm_ptr->tr[TR_MI] - hmm_ptr->tr_M_I[from][to];
 			}
 
 			if (temp_alpha < alpha[i][t]){
@@ -304,30 +300,27 @@ char *head, int whole_genome, int cg, int format, int eflag, int dflag){
 
 				temp_i[i-I1_STATE] = t-1;
 			}
-      	}
-    }
+		}
+	
 
-    /******************/
-    /* M' state        */
-    /******************/
+		/******************/
+		/* M' state        */
+		/******************/
 
-    for (i=M1_STATE_1; i<=M6_STATE_1; i++)   {
-    	if  ((i==M1_STATE_1 || i==M4_STATE_1)&& t>=3 &&
-	   	(((O[t-3] == 'T'||O[t-3] == 't') && (O[t-2] == 'T'||O[t-2] == 't') && (O[t-1] == 'A'||O[t-1] =='a')) ||
-	    ((O[t-3] == 'C'||O[t-3] == 'c') && (O[t-2] == 'T'||O[t-2] == 't') && (O[t-1] == 'A'||O[t-1] =='a')) ||
-	    ((O[t-3] == 'T'||O[t-3] == 't') && (O[t-2] == 'C'||O[t-2] == 'c') && (O[t-1] == 'A'||O[t-1] =='a')))){
-
-			/* from Start state  since this is actually stop codon in minus strand */
-			alpha[i][t] = alpha[S_STATE_1][t-1] - hmm_ptr->e_M_1[i-M1_STATE_1][from2][to];
-			path[i][t] = S_STATE_1;
-
-    	}else{
-
-			if (t==0){
+		for (i=M1_STATE_1; i<=M6_STATE_1; i++)   {
 			
+			if  ((i==M1_STATE_1 || i==M4_STATE_1)&& t>=3 &&
+				(((hulp_t_min_3 == 't') && (hulp_t_min_2 == 't') && (hulp_t_min_1 =='a')) ||
+				((hulp_t_min_3 == 'c') && (hulp_t_min_2 == 't') && (hulp_t_min_1 =='a')) ||
+				((hulp_t_min_3 == 't') && (hulp_t_min_2 == 'c') && (hulp_t_min_1 =='a')))){
+
+				/* from Start state  since this is actually stop codon in minus strand */
+				alpha[i][t] = alpha[S_STATE_1][t-1] - hmm_ptr->e_M_1[i-M1_STATE_1][from2][to];
+				path[i][t] = S_STATE_1;
+
 			}else{
 
-	  			if (i==M1_STATE_1 ){
+				if (i==M1_STATE_1 ){
 
 					/* from M state */
 					j = M6_STATE_1;
@@ -344,7 +337,7 @@ char *head, int whole_genome, int cg, int format, int eflag, int dflag){
 							}else{
 								num_d = -10;
 							}
-							
+								
 							if (num_d > 0){
 								temp_alpha = alpha[j][t-1] - hmm_ptr->tr[TR_MD] - hmm_ptr->e_M_1[0][from2][to] - log25*(num_d-1) - hmm_ptr->tr[TR_DD]*(num_d-2) - hmm_ptr->tr[TR_DM];
 								if ( temp_alpha < alpha[i][t]){
@@ -355,7 +348,7 @@ char *head, int whole_genome, int cg, int format, int eflag, int dflag){
 						}
 					}
 
-	  			}else{
+				}else{
 
 					/* from M state */
 					j = i - 1;
@@ -382,33 +375,32 @@ char *head, int whole_genome, int cg, int format, int eflag, int dflag){
 							}
 						}
 					}
-	  			}
+				}
 
-			/* from I state */
-			if (i==M1_STATE_1) { 
-				j = I6_STATE_1;
-			}else{ 
-				j = I1_STATE_1 + (i - M1_STATE_1 -1); 
-			}
+				/* from I state */
+				j = I1_STATE_1 + (i - M1_STATE_1 -1);
+				if (i==M1_STATE_1) j = I6_STATE_1;
 
-			/* to aviod stop codon */
-			if (t<2){
-				
-			}else  if((i==M2_STATE_1 || i==M5_STATE_1) && (O[t+1] == 'A'||O[t+1] == 'a') &&
-				(((O[temp_i_1[j-I1_STATE_1]] == 'T'|| O[temp_i_1[j-I1_STATE_1]] == 't') && (O[t] =='T'|| O[t] =='t')) ||
-				((O[temp_i_1[j-I1_STATE_1]] == 'C'|| O[temp_i_1[j-I1_STATE_1]] == 'c') && (O[t] =='T'|| O[t] =='t')) ||
-				((O[temp_i_1[j-I1_STATE_1]] == 'T'|| O[temp_i_1[j-I1_STATE_1]] == 't') && (O[t] =='C'|| O[t] =='c')))){
+				/* to aviod stop codon */
+				char temp_hulp = O[temp_i_1[j-I1_STATE_1]] | 0x20;
+				char temp_hulp_1 = O[temp_i_1[j-I1_STATE_1]-1] | 0x20;
+				if (t<2){
+					// NO CODE
 
-			}else if ((i==M3_STATE_1 || i==M6_STATE_1) && (O[t] == 'A'||O[t] == 'a') &&
-				(((O[temp_i_1[j-I1_STATE_1]-1] == 'T'|| O[temp_i_1[j-I1_STATE_1]-1]=='t') &&
-				(O[temp_i_1[j-I1_STATE_1]] =='T'|| O[temp_i_1[j-I1_STATE_1]] =='t')) || 
-				((O[temp_i_1[j-I1_STATE_1]-1] == 'C'|| O[temp_i_1[j-I1_STATE_1]-1]=='c') &&
-				(O[temp_i_1[j-I1_STATE_1]] =='T'|| O[temp_i_1[j-I1_STATE_1]] =='t')) || 
-				((O[temp_i_1[j-I1_STATE_1]-1] == 'T'|| O[temp_i_1[j-I1_STATE_1]-1]=='t') &&
-				(O[temp_i_1[j-I1_STATE_1]] =='C'|| O[temp_i_1[j-I1_STATE_1]] =='c')))){
+				}else  if((i==M2_STATE_1 || i==M5_STATE_1) && (hulp_t_1 == 'a') &&
+					(((temp_hulp == 't') && (hulp_t_0 =='t')) ||
+					((temp_hulp == 'c') && (hulp_t_0 =='t')) ||
+					((temp_hulp == 't') && (hulp_t_0 =='c')))){
+					// NO CODE
 
-			}else{
-				temp_alpha = alpha[j][t-1]  - hmm_ptr->tr[TR_IM] - log25;
+				}else if ((i==M3_STATE_1 || i==M6_STATE_1) && (hulp_t_0 == 'a') &&
+					( ((temp_hulp_1=='t') && (temp_hulp =='t')) || 
+					  ((temp_hulp_1=='c') && (temp_hulp =='t')) || 
+					  ((temp_hulp_1=='t') && (temp_hulp =='c')))){
+					// NO CODE
+
+				}else{
+					temp_alpha = alpha[j][t-1]  - hmm_ptr->tr[TR_IM] - log25;
 					if ( temp_alpha < alpha[i][t]){
 						alpha[i][t] = temp_alpha;
 						path[i][t] = j;
@@ -416,46 +408,41 @@ char *head, int whole_genome, int cg, int format, int eflag, int dflag){
 				}
 			}
 		}
-    }
 
-    /******************/
-    /* I' state        */
-    /******************/
-    for (i=I1_STATE_1; i<=I6_STATE_1; i++) {
+		/******************/
+		/* I' state        */
+		/******************/
+		for (i=I1_STATE_1; i<=I6_STATE_1; i++) {
 
-		if (t==0){
+			if (t==0){
 
-		}else{
-			/* from I state */
-			j = i;
-			alpha[i][t] = alpha[j][t-1] - hmm_ptr->tr[TR_II] - hmm_ptr->tr_I_I[from][to];
-			path[i][t] = j;
+			}else{
+				/* from I state */
+				j = i;
+				alpha[i][t] = alpha[j][t-1] - hmm_ptr->tr[TR_II] - hmm_ptr->tr_I_I[from][to];
+				path[i][t] = j;
 
-			/* from M state */
-			if (path[S_STATE_1][t-3]!= R_STATE && path[S_STATE_1][t-4] !=R_STATE && path[S_STATE_1][t-5] !=R_STATE){
-				j = i - I1_STATE_1 + M1_STATE_1;
-				if (i==I6_STATE_1){
-					temp_alpha = alpha[j][t-1] - hmm_ptr->tr[TR_GG] - hmm_ptr->tr[TR_MI] -hmm_ptr->tr_M_I[from][to];
-				}else{
+				/* from M state */
+				if (path[S_STATE_1][t-3]!= R_STATE && path[S_STATE_1][t-4] !=R_STATE && path[S_STATE_1][t-5] !=R_STATE){
+					j = i - I1_STATE_1 + M1_STATE_1;
+					
 					temp_alpha = alpha[j][t-1]  - hmm_ptr->tr[TR_MI] -hmm_ptr->tr_M_I[from][to];
-				}
-				if (temp_alpha < alpha[i][t]){
-					alpha[i][t] = temp_alpha;
-					path[i][t] = j;
+					if (i==I6_STATE_1) temp_alpha = alpha[j][t-1] - hmm_ptr->tr[TR_GG] - hmm_ptr->tr[TR_MI] -hmm_ptr->tr_M_I[from][to];
+			
+					if (temp_alpha < alpha[i][t]){
+						alpha[i][t] = temp_alpha;
+						path[i][t] = j;
 
-					temp_i_1[i-I1_STATE_1] = t-1;
+						temp_i_1[i-I1_STATE_1] = t-1;
+					}
 				}
 			}
 		}
-    }
 
-    /***********************/
-    /* Non_coding state    */
-    /***********************/
+		/***********************/
+		/* Non_coding state    */
+		/***********************/
 
-    if (t==0){
-
-    }else{
 		alpha[R_STATE][t] = alpha[R_STATE][t-1] - hmm_ptr->tr_R_R[from][to] - hmm_ptr->tr[TR_RR];
 		path[R_STATE][t] = R_STATE;
 
@@ -471,641 +458,639 @@ char *head, int whole_genome, int cg, int format, int eflag, int dflag){
 			path[R_STATE][t] = E_STATE_1;
 		}
 		alpha[R_STATE][t] -= log95;
-    }
-
-    /******************/
-    /* END state      */
-    /******************/
-    if (alpha[E_STATE][t] == 0){
-
-		alpha[E_STATE][t] = max_dbl;
-		path[E_STATE][t] = NOSTATE;
-
-		if (t < len_seq -2 && (O[t] == 'T'||O[t] == 't')  &&
-			(((O[t+1] == 'A'||O[t+1] == 'a') && (O[t+2] == 'A'||O[t+2] =='a')) ||
-			((O[t+1] == 'A'||O[t+1] == 'a') && (O[t+2] == 'G'||O[t+2] =='g')) ||
-			((O[t+1] == 'G'||O[t+1] == 'g') && (O[t+2] == 'A'||O[t+2] =='a')))) {
-
-			alpha[E_STATE][t+2] = max_dbl;
-			/* transition from frame4,frame5,and frame6 */
-			temp_alpha = alpha[M6_STATE][t-1] - hmm_ptr->tr[TR_GE];
-			if (temp_alpha < alpha[E_STATE][t+2]){
-				alpha[E_STATE][t+2] = temp_alpha;
-				path[E_STATE][t] = M6_STATE;
-			}
-
-			/* transition from frame1,frame2,and frame3 */
-			temp_alpha  = alpha[M3_STATE][t-1] - hmm_ptr->tr[TR_GE];
-			if (temp_alpha < alpha[E_STATE][t+2]){
-				alpha[E_STATE][t+2] = temp_alpha;
-				path[E_STATE][t] = M3_STATE;
-			}
+		
+		/******************/
+		/* END state      */
+		/******************/
+		if (alpha[E_STATE][t] == 0){
 
 			alpha[E_STATE][t] = max_dbl;
-			alpha[E_STATE][t+1] = max_dbl;
-			path[E_STATE][t+1] = E_STATE;
-			path[E_STATE][t+2] = E_STATE;
+			path[E_STATE][t] = NOSTATE;
 
-			alpha[M6_STATE][t+2] = max_dbl;
-			alpha[M5_STATE][t+1] = max_dbl;
-			alpha[M4_STATE][t] = max_dbl;
-			alpha[M3_STATE][t+2] = max_dbl;
-			alpha[M2_STATE][t+1] = max_dbl;
-			alpha[M1_STATE][t] = max_dbl;
+			if (t < len_seq -2 && (hulp_t_0 == 't')  &&
+				(((hulp_t_1 == 'a') && (hulp_t_2 =='a')) ||
+				((hulp_t_1 == 'a') && (hulp_t_2 =='g')) ||
+				((hulp_t_1 == 'g') && (hulp_t_2 =='a')))) {
 
-			if ((O[t+1] == 'A'||O[t+1] =='a') && (O[t+2] == 'A'||O[t+2] =='a')){
-				alpha[E_STATE][t+2] = alpha[E_STATE][t+2] - log54;
-			}else if ((O[t+1] == 'A'||O[t+1] =='a') && (O[t+2] == 'G'||O[t+2] =='g')){
-				alpha[E_STATE][t+2] = alpha[E_STATE][t+2] - log16;
-			}else if((O[t+1] == 'G'||O[t+1] == 'g') && (O[t+2] == 'A'||O[t+2] =='a')) {
-				alpha[E_STATE][t+2] = alpha[E_STATE][t+2] - log30;
-			}
-
-			/* adjustment based on probability distribution */
-			start_freq=0;
-			freq_id = 0;
-
-			double sub_sum = 0;
-			int sub_count = 0;
-
-			if (t>=60){ /* bug reported by Yu-Wei */
-				for(i=-60; i<=-3; i++){
-					if (t+i+2 < len_seq){
-						start_freq -= hmm_ptr->tr_E[i+60][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
-					}
+				alpha[E_STATE][t+2] = max_dbl;
+				
+				/* transition from frame4,frame5,and frame6 */
+				temp_alpha = alpha[M6_STATE][t-1] - hmm_ptr->tr[TR_GE];
+				if (temp_alpha < alpha[E_STATE][t+2]){
+					alpha[E_STATE][t+2] = temp_alpha;
+					path[E_STATE][t] = M6_STATE;
 				}
-			}else{
-				for(i=(-1*t); i<=-3; i++){
-					if (t+i+2 < len_seq){
-						sub_sum += hmm_ptr->tr_E[i+60][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
-					}
+
+				/* transition from frame1,frame2,and frame3 */
+				temp_alpha  = alpha[M3_STATE][t-1] - hmm_ptr->tr[TR_GE];
+				if (temp_alpha < alpha[E_STATE][t+2]){
+					alpha[E_STATE][t+2] = temp_alpha;
+					path[E_STATE][t] = M3_STATE;
 				}
-				sub_sum = sub_sum * 58 / (-3 + t + 1);
-				start_freq -= sub_sum;
-			}
 
-			h_kd = hmm_ptr->E_dist[2] * exp(-1*pow(start_freq-hmm_ptr->E_dist[1],2)/(2*pow(hmm_ptr->E_dist[0],2)));
-			r_kd = hmm_ptr->E_dist[5] * exp(-1*pow(start_freq-hmm_ptr->E_dist[4],2)/(2*pow(hmm_ptr->E_dist[3],2)));
-			p_kd = h_kd / (h_kd + r_kd);
-			if (p_kd<0.01){
-				p_kd=0.01;
-			}else if (p_kd>0.99){
-				p_kd=0.99;
-			}
+				alpha[E_STATE][t] = max_dbl;
+				alpha[E_STATE][t+1] = max_dbl;
+				path[E_STATE][t+1] = E_STATE;
+				path[E_STATE][t+2] = E_STATE;
 
-			alpha[E_STATE][t+2] = alpha[E_STATE][t+2] - log(p_kd);
+				alpha[M6_STATE][t+2] = max_dbl;
+				alpha[M5_STATE][t+1] = max_dbl;
+				alpha[M4_STATE][t] = max_dbl;
+				alpha[M3_STATE][t+2] = max_dbl;
+				alpha[M2_STATE][t+1] = max_dbl;
+				alpha[M1_STATE][t] = max_dbl;
+
+				if ((hulp_t_1 =='a') && (hulp_t_2 =='a')){
+					alpha[E_STATE][t+2] = alpha[E_STATE][t+2] - log54;
+				}else if ((hulp_t_1 =='a') && (hulp_t_2 =='g')){
+					alpha[E_STATE][t+2] = alpha[E_STATE][t+2] - log16;
+				}else if((hulp_t_1 == 'g') && (hulp_t_2 =='a')) {
+					alpha[E_STATE][t+2] = alpha[E_STATE][t+2] - log30;
+				}
+
+				/* adjustment based on probability distribution */
+				start_freq=0;
+				freq_id = 0;
+
+				double sub_sum = 0;
+				int sub_count = 0;
+
+				if (t>=60){ /* bug reported by Yu-Wei */
+					for(i=-60; i<=-3; i++){
+						if (t+i+2 < len_seq){
+							start_freq -= hmm_ptr->tr_E[i+60][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
+						}
+					}
+				}else{
+					for(i=(-1*t); i<=-3; i++){
+						if (t+i+2 < len_seq){
+							sub_sum += hmm_ptr->tr_E[i+60][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
+						}
+					}
+					sub_sum = sub_sum * 58 / (-3 + t + 1);
+					start_freq -= sub_sum;
+				}
+
+				h_kd = hmm_ptr->E_dist[2] * exp(-1*pow(start_freq-hmm_ptr->E_dist[1],2)/(2*pow(hmm_ptr->E_dist[0],2)));
+				r_kd = hmm_ptr->E_dist[5] * exp(-1*pow(start_freq-hmm_ptr->E_dist[4],2)/(2*pow(hmm_ptr->E_dist[3],2)));
+				p_kd = h_kd / (h_kd + r_kd);
+				if (p_kd<0.01){
+					p_kd=0.01;
+				}else if (p_kd>0.99){
+					p_kd=0.99;
+				}
+
+				alpha[E_STATE][t+2] = alpha[E_STATE][t+2] - log(p_kd);
+			}
 		}
-    }
 
-    /*************************************************/
-    /* START' state                                  */
-    /* origianlly stop codon of genes in - strand    */
-    /*************************************************/
-    if (alpha[S_STATE_1][t] == 0){
-
-		alpha[S_STATE_1][t] = max_dbl;
-		path[S_STATE_1][t] = NOSTATE;
-
-
-		if (t<len_seq-2 && (O[t+2] == 'A'||O[t+2] == 'a') &&
-			(((O[t] == 'T'||O[t] =='t') && (O[t+1] == 'T'|| O[t+1] == 't')) ||
-			((O[t] == 'C'||O[t] =='c') && (O[t+1] == 'T'|| O[t+1] == 't')) ||
-			((O[t] == 'T'||O[t] =='t') && (O[t+1] == 'C'|| O[t+1] == 'c')))) {
+		/*************************************************/
+		/* START' state                                  */
+		/* origianlly stop codon of genes in - strand    */
+		/*************************************************/
+		if (alpha[S_STATE_1][t] == 0){
 
 			alpha[S_STATE_1][t] = max_dbl;
-			path[S_STATE_1][t] = R_STATE;
-			alpha[S_STATE_1][t+1] = max_dbl;
-			alpha[S_STATE_1][t+2] = alpha[R_STATE][t-1] - hmm_ptr->tr[TR_RS];
-			path[S_STATE_1][t+1] = S_STATE_1;
-			path[S_STATE_1][t+2] = S_STATE_1;
+			path[S_STATE_1][t] = NOSTATE;
 
-			temp_alpha = alpha[E_STATE_1][t-1] - hmm_ptr->tr[TR_ES];
-			if (temp_alpha < alpha[S_STATE_1][t+2]){
-				alpha[S_STATE_1][t+2] = temp_alpha;
-				path[S_STATE_1][t] = E_STATE_1;
-			}
 
-			temp_alpha = alpha[E_STATE][t-1] - hmm_ptr->tr[TR_ES1];
-			if (temp_alpha < alpha[S_STATE_1][t+2]){
-				alpha[S_STATE_1][t+2] = temp_alpha;
-				path[S_STATE_1][t] = E_STATE;
-			}
+			if (t<len_seq-2 && (hulp_t_2 == 'a') &&
+				(((hulp_t_0 =='t') && (hulp_t_1 == 't')) ||
+				((hulp_t_0 =='c') && (hulp_t_1 == 't')) ||
+				((hulp_t_0 =='t') && (hulp_t_1 == 'c')))) {
 
-			alpha[M3_STATE_1][t+2] = max_dbl;
-			alpha[M6_STATE_1][t+2] = max_dbl;
+				alpha[S_STATE_1][t] = max_dbl;
+				path[S_STATE_1][t] = R_STATE;
+				alpha[S_STATE_1][t+1] = max_dbl;
+				alpha[S_STATE_1][t+2] = alpha[R_STATE][t-1] - hmm_ptr->tr[TR_RS];
+				path[S_STATE_1][t+1] = S_STATE_1;
+				path[S_STATE_1][t+2] = S_STATE_1;
 
-			if ((O[t] == 'T'||O[t] == 't') && (O[t+1] == 'T'||O[t+1] == 't')){
-				alpha[S_STATE_1][t+2] = alpha[S_STATE_1][t+2] - log54;
-			}else if ((O[t] == 'C'||O[t] =='c') && (O[t+1] == 'T'||O[t+1]=='t')){
-				alpha[S_STATE_1][t+2] = alpha[S_STATE_1][t+2] - log16;
-			}else if((O[t] == 'T'||O[t] =='t') && (O[t+1] == 'C'||O[t+1] =='c')){
-				alpha[S_STATE_1][t+2] = alpha[S_STATE_1][t+2] - log30;
-			}
-
-			/* adjustment based on probability distribution */
-			start_freq=0;
-			freq_id = 0;
-			for(i=3; i<=60; i++){
-				if (t+i+2 < len_seq){
-					start_freq -= hmm_ptr->tr_S_1[i-3][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
+				temp_alpha = alpha[E_STATE_1][t-1] - hmm_ptr->tr[TR_ES];
+				if (temp_alpha < alpha[S_STATE_1][t+2]){
+					alpha[S_STATE_1][t+2] = temp_alpha;
+					path[S_STATE_1][t] = E_STATE_1;
 				}
-			}
 
-			h_kd = hmm_ptr->S1_dist[2] * exp(-1*pow(start_freq-hmm_ptr->S1_dist[1],2)/(2*pow(hmm_ptr->S1_dist[0],2)));
-			r_kd = hmm_ptr->S1_dist[5] * exp(-1*pow(start_freq-hmm_ptr->S1_dist[4],2)/(2*pow(hmm_ptr->S1_dist[3],2)));
-			p_kd = h_kd / (h_kd + r_kd);
-			
-			if (p_kd<0.01){
-				p_kd=0.01;
-			}else if (p_kd>0.99){
-				p_kd=0.99;
+				temp_alpha = alpha[E_STATE][t-1] - hmm_ptr->tr[TR_ES1];
+				if (temp_alpha < alpha[S_STATE_1][t+2]){
+					alpha[S_STATE_1][t+2] = temp_alpha;
+					path[S_STATE_1][t] = E_STATE;
+				}
+
+				alpha[M3_STATE_1][t+2] = max_dbl;
+				alpha[M6_STATE_1][t+2] = max_dbl;
+
+				if ((hulp_t_0 == 't') && (hulp_t_1 == 't')){
+					alpha[S_STATE_1][t+2] = alpha[S_STATE_1][t+2] - log54;
+				}else if ((hulp_t_0 =='c') && (hulp_t_1=='t')){
+					alpha[S_STATE_1][t+2] = alpha[S_STATE_1][t+2] - log16;
+				}else if((hulp_t_0 =='t') && (hulp_t_1 =='c')){
+					alpha[S_STATE_1][t+2] = alpha[S_STATE_1][t+2] - log30;
+				}
+
+				/* adjustment based on probability distribution */
+				start_freq=0;
+				freq_id = 0;
+				for(i=3; i<=60; i++){
+					if (t+i+2 < len_seq){
+						start_freq -= hmm_ptr->tr_S_1[i-3][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
+					}
+				}
+
+				h_kd = hmm_ptr->S1_dist[2] * exp(-1*pow(start_freq-hmm_ptr->S1_dist[1],2)/(2*pow(hmm_ptr->S1_dist[0],2)));
+				r_kd = hmm_ptr->S1_dist[5] * exp(-1*pow(start_freq-hmm_ptr->S1_dist[4],2)/(2*pow(hmm_ptr->S1_dist[3],2)));
+				p_kd = h_kd / (h_kd + r_kd);
+				
+				if (p_kd<0.01){
+					p_kd=0.01;
+				}else if (p_kd>0.99){
+					p_kd=0.99;
+				}
+				alpha[S_STATE_1][t+2] = alpha[S_STATE_1][t+2] - log(p_kd);
 			}
-			alpha[S_STATE_1][t+2] = alpha[S_STATE_1][t+2] - log(p_kd);
 		}
-    }
 
-    /************************/
-    /* START state          */
-    /************************/
-    if (alpha[S_STATE][t] == 0){
-
-		alpha[S_STATE][t] = max_dbl;
-		path[S_STATE][t] = NOSTATE;
-
-		if (t<len_seq-2 &&  (O[t+1] == 'T'||O[t+1] =='t') && (O[t+2] == 'G'||O[t+2] =='g')&&
-			((O[t] == 'A'||O[t] =='a') || (O[t] == 'G'||O[t] =='g') ||  (O[t] == 'T'||O[t] =='t'))) {
+		/************************/
+		/* START state          */
+		/************************/
+		if (alpha[S_STATE][t] == 0){
 
 			alpha[S_STATE][t] = max_dbl;
-			alpha[S_STATE][t+1] = max_dbl;
-			alpha[S_STATE][t+2] = alpha[R_STATE][t-1] - hmm_ptr->tr[TR_RS];
-			path[S_STATE][t] = R_STATE;
-			path[S_STATE][t+1] = S_STATE;
-			path[S_STATE][t+2] = S_STATE;
+			path[S_STATE][t] = NOSTATE;
 
-			temp_alpha = alpha[E_STATE][t-1] - hmm_ptr->tr[TR_ES];
-			if (temp_alpha < alpha[S_STATE][t+2]){
-				alpha[S_STATE][t+2] = temp_alpha;
-				path[S_STATE][t] = E_STATE;
-			}
+			if (t<len_seq-2 &&  (hulp_t_1 =='t') && (hulp_t_2 =='g') &&
+				((hulp_t_0 =='a') || (hulp_t_0 =='g') ||  (hulp_t_0 =='t'))) {
 
-			temp_alpha = alpha[E_STATE_1][t-1] - hmm_ptr->tr[TR_ES1];
-			if (temp_alpha < alpha[S_STATE][t+2]){
-				alpha[S_STATE][t+2] = temp_alpha;
-				path[S_STATE][t] = E_STATE_1;
-			}
+				alpha[S_STATE][t] = max_dbl;
+				alpha[S_STATE][t+1] = max_dbl;
+				alpha[S_STATE][t+2] = alpha[R_STATE][t-1] - hmm_ptr->tr[TR_RS];
+				path[S_STATE][t] = R_STATE;
+				path[S_STATE][t+1] = S_STATE;
+				path[S_STATE][t+2] = S_STATE;
 
-
-			if ((O[t] == 'A'||O[t] =='a') ){
-				alpha[S_STATE][t+2] = alpha[S_STATE][t+2] - log83;
-			}else if ((O[t] == 'G'||O[t] =='g')){
-				alpha[S_STATE][t+2] = alpha[S_STATE][t+2] - log(0.10);
-			}else if((O[t] == 'T'||O[t] == 't')) {
-				alpha[S_STATE][t+2] = alpha[S_STATE][t+2] - log07;
-			}
-
-			/* adjustment based on probability distribution */
-			start_freq=0;
-			freq_id = 0;
-			double sub_sum = 0;
-			int sub_count = 0;
-
-			if (t>=30){
-				for(i=-30; i<=30; i++){
-					if (t+i+2 < len_seq){	
-						start_freq -= hmm_ptr->tr_S[i+30][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
-					}
+				temp_alpha = alpha[E_STATE][t-1] - hmm_ptr->tr[TR_ES];
+				if (temp_alpha < alpha[S_STATE][t+2]){
+					alpha[S_STATE][t+2] = temp_alpha;
+					path[S_STATE][t] = E_STATE;
 				}
-			}else{
-				for(i=(-1*t); i<=30; i++){
-					if (t+i+2 < len_seq){	
-						sub_sum += hmm_ptr->tr_S[i+30][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
-					}
+
+				temp_alpha = alpha[E_STATE_1][t-1] - hmm_ptr->tr[TR_ES1];
+				if (temp_alpha < alpha[S_STATE][t+2]){
+					alpha[S_STATE][t+2] = temp_alpha;
+					path[S_STATE][t] = E_STATE_1;
 				}
-				sub_sum = sub_sum * 61 / (30 + t + 1);
-				start_freq -= sub_sum;
-			}
 
-			h_kd = hmm_ptr->S_dist[2] * exp(-1*pow(start_freq-hmm_ptr->S_dist[1],2)/(2*pow(hmm_ptr->S_dist[0],2)));
-			r_kd = hmm_ptr->S_dist[5] * exp(-1*pow(start_freq-hmm_ptr->S_dist[4],2)/(2*pow(hmm_ptr->S_dist[3],2)));
-			p_kd = h_kd / (h_kd + r_kd);
-			if (p_kd<0.01){
-				p_kd=0.01;
-			}else if (p_kd>0.99){
-				p_kd=0.99;
-			}
-			alpha[S_STATE][t+2] = alpha[S_STATE][t+2] - log(p_kd);
 
+				if ((hulp_t_0 =='a') ){
+					alpha[S_STATE][t+2] = alpha[S_STATE][t+2] - log83;
+				}else if ((hulp_t_0 =='g')){
+					alpha[S_STATE][t+2] = alpha[S_STATE][t+2] - log(0.10);
+				}else if((hulp_t_0 == 't')) {
+					alpha[S_STATE][t+2] = alpha[S_STATE][t+2] - log07;
+				}
+
+				/* adjustment based on probability distribution */
+				start_freq=0;
+				freq_id = 0;
+				double sub_sum = 0;
+				int sub_count = 0;
+
+				if (t>=30){
+					for(i=-30; i<=30; i++){
+						if (t+i+2 < len_seq){	
+							start_freq -= hmm_ptr->tr_S[i+30][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
+						}
+					}
+				}else{
+					for(i=(-1*t); i<=30; i++){
+						if (t+i+2 < len_seq){	
+							sub_sum += hmm_ptr->tr_S[i+30][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
+						}
+					}
+					sub_sum = sub_sum * 61 / (30 + t + 1);
+					start_freq -= sub_sum;
+				}
+
+				h_kd = hmm_ptr->S_dist[2] * exp(-1*pow(start_freq-hmm_ptr->S_dist[1],2)/(2*pow(hmm_ptr->S_dist[0],2)));
+				r_kd = hmm_ptr->S_dist[5] * exp(-1*pow(start_freq-hmm_ptr->S_dist[4],2)/(2*pow(hmm_ptr->S_dist[3],2)));
+				p_kd = h_kd / (h_kd + r_kd);
+				if (p_kd<0.01){
+					p_kd=0.01;
+				}else if (p_kd>0.99){
+					p_kd=0.99;
+				}
+				alpha[S_STATE][t+2] = alpha[S_STATE][t+2] - log(p_kd);
+
+			}
 		}
-    }
 
-    /**********************************************/
-    /* END' state                                 */
-    /* originally start codon of genes in - strand */
-    /**********************************************/
-    if (alpha[E_STATE_1][t] == 0){
+		/**********************************************/
+		/* END' state                                 */
+		/* originally start codon of genes in - strand */
+		/**********************************************/
+		if (alpha[E_STATE_1][t] == 0){
 
-		alpha[E_STATE_1][t] = max_dbl;
-		path[E_STATE_1][t] = NOSTATE;
-
-		if (t < len_seq - 2 && (O[t] == 'C'||O[t] =='c') && (O[t+1] == 'A'||O[t+1] == 'a') &&
-			((O[t+2] == 'T'||O[t+2] =='t') || (O[t+2] == 'C'||O[t+2] =='c') || (O[t+2] == 'A'||O[t+2] =='a'))) {
-
-			/* transition from frame6 */
-			alpha[E_STATE_1][t+2] = alpha[M6_STATE_1][t-1] - hmm_ptr->tr[TR_GE];
-			path[E_STATE_1][t] = M6_STATE_1;
 			alpha[E_STATE_1][t] = max_dbl;
-			alpha[E_STATE_1][t+1] = max_dbl;
-			path[E_STATE_1][t+1] = E_STATE_1;
-			path[E_STATE_1][t+2] = E_STATE_1;
+			path[E_STATE_1][t] = NOSTATE;
 
-			if ((O[t+2] == 'T'||O[t+2] == 't') ){
-				alpha[E_STATE_1][t+2] = alpha[E_STATE_1][t+2] - log83;
-			}else if ((O[t+2] == 'C'||O[t+2] =='c') ){
-				alpha[E_STATE_1][t+2] = alpha[E_STATE_1][t+2] - log(0.10);
-			}else if((O[t+2] == 'A'||O[t+2] =='a') ){
-				alpha[E_STATE_1][t+2] = alpha[E_STATE_1][t+2] - log07;
-			}
+			if (t < len_seq - 2 && (hulp_t_0 =='c') && (hulp_t_1 == 'a') &&
+				((hulp_t_2 =='t') || (hulp_t_2 =='c') || (hulp_t_2 =='a'))) {
 
-			/* adjustment based on probability distribution */
-			start_freq=0;
-			freq_id = 0;
+				/* transition from frame6 */
+				alpha[E_STATE_1][t+2] = alpha[M6_STATE_1][t-1] - hmm_ptr->tr[TR_GE];
+				path[E_STATE_1][t] = M6_STATE_1;
+				alpha[E_STATE_1][t] = max_dbl;
+				alpha[E_STATE_1][t+1] = max_dbl;
+				path[E_STATE_1][t+1] = E_STATE_1;
+				path[E_STATE_1][t+2] = E_STATE_1;
 
-			double sub_sum = 0;
-			int sub_count = 0;
-
-			if (t>=30){
-				for(i=-30; i<=30; i++){
-					if (t+i+2 < len_seq)
-					{	
-						start_freq -= hmm_ptr->tr_E_1[i+30][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
-					}
+				if ((hulp_t_2 == 't') ){
+					alpha[E_STATE_1][t+2] = alpha[E_STATE_1][t+2] - log83;
+				}else if ((hulp_t_2 == 'c') ){
+					alpha[E_STATE_1][t+2] = alpha[E_STATE_1][t+2] - log(0.10);
+				}else if((hulp_t_2 == 'a') ){
+					alpha[E_STATE_1][t+2] = alpha[E_STATE_1][t+2] - log07;
 				}
-			}else{
-				for(i=(-1*t); i<=30; i++){
-					if (t+i+2 < len_seq)
-					{	
-						sub_sum += hmm_ptr->tr_E_1[i+30][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
+
+				/* adjustment based on probability distribution */
+				start_freq=0;
+				freq_id = 0;
+
+				double sub_sum = 0;
+				int sub_count = 0;
+
+				if (t>=30){
+					for(i=-30; i<=30; i++){
+						if (t+i+2 < len_seq)
+						{	
+							start_freq -= hmm_ptr->tr_E_1[i+30][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
+						}
 					}
+				}else{
+					for(i=(-1*t); i<=30; i++){
+						if (t+i+2 < len_seq)
+						{	
+							sub_sum += hmm_ptr->tr_E_1[i+30][trinucleotide(O[t+i], O[t+i+1], O[t+i+2])];
+						}
+					}
+					sub_sum = sub_sum * 61 / (30 + t + 1);
+					start_freq -= sub_sum;
 				}
-				sub_sum = sub_sum * 61 / (30 + t + 1);
-				start_freq -= sub_sum;
+
+				h_kd = hmm_ptr->E1_dist[2] * exp(-1*pow(start_freq-hmm_ptr->E1_dist[1],2)/(2*pow(hmm_ptr->E1_dist[0],2)));
+				r_kd = hmm_ptr->E1_dist[5] * exp(-1*pow(start_freq-hmm_ptr->E1_dist[4],2)/(2*pow(hmm_ptr->E1_dist[3],2)));
+				p_kd = h_kd / (h_kd + r_kd);
+
+				if (p_kd<0.01){
+					p_kd=0.01;
+				}else if (p_kd>0.99){
+					p_kd=0.99;
+				}
+				alpha[E_STATE_1][t+2] = alpha[E_STATE_1][t+2] - log(p_kd);
 			}
-
-			h_kd = hmm_ptr->E1_dist[2] * exp(-1*pow(start_freq-hmm_ptr->E1_dist[1],2)/(2*pow(hmm_ptr->E1_dist[0],2)));
-			r_kd = hmm_ptr->E1_dist[5] * exp(-1*pow(start_freq-hmm_ptr->E1_dist[4],2)/(2*pow(hmm_ptr->E1_dist[3],2)));
-			p_kd = h_kd / (h_kd + r_kd);
-
-			if (p_kd<0.01){
-				p_kd=0.01;
-			}else if (p_kd>0.99){
-				p_kd=0.99;
-			}
-			alpha[E_STATE_1][t+2] = alpha[E_STATE_1][t+2] - log(p_kd);
-		}
-    }
-    
-	if (num_N>9){
-
-      	for (i=0; i<NUM_STATE; i++){
-			if (i!=R_STATE){
-	  			alpha[i][t] = max_dbl;
-	  			path[i][t] = R_STATE;
-			}
-      	}
-    }
-
-  }
-
-  /***********************************************************/
-  /* backtrack array to find the optimal path                */
-  /***********************************************************/
-
-  head_short = strtok(head, delimi);
-  if(eflag){
-	  fprintf(fp_out, "%s\n", head_short); //use head_short, Ye, April 22, 2016
-  }
-  
-
-  /* find the state for O[N] with the highest probability */
-  prob = max_dbl;
-  for (i = 0; i < hmm_ptr->N; i++){
-	if (alpha[i][len_seq-1] < prob){
-      prob = alpha[i][len_seq-1];
-      vpath[len_seq-1] = i;
-    }
-  }
-
-  /* backtrack the optimal path */
-  for(t=len_seq-2; t>=0; t--){
-    vpath[t] = path[vpath[t+1]][t+1];
-  }
-
-  print_save = 0;
-  codon_start=0;
-  start_t=-1;
-
-  int glen = strlen(O);
-  char codon[4], utr[65];
-
-  // een for loop met heel veel code in !!!!
-  for (t=0; t<len_seq; t++){
-
-    if (codon_start==0 && start_t < 0 &&
-		((vpath[t]>=M1_STATE && vpath[t]<=M6_STATE) ||
-	 	(vpath[t]>=M1_STATE_1 && vpath[t]<=M6_STATE_1) ||
-	 	vpath[t] == S_STATE || vpath[t] == S_STATE_1 )){
-      		
-			  dna_start_t_withstop=dna_start_t=start_t=t+1;
-      		//introduce dna_start_t_withstop YY July 2018
-    
-	}
-
-    if (codon_start==0 &&
-		(vpath[t]==M1_STATE || vpath[t]==M4_STATE ||
-		 vpath[t]==M1_STATE_1 || vpath[t]==M4_STATE_1)){
-
-		memset(dna,0,300000);
-		memset(dna1,0,300000);
-		memset(dna_f,0,300000);
-		memset(dna_f1,0,300000);
-		memset(protein,0, 100000);
-		memset(insert,0,100);
-		memset(delete,0,100);
-
-		insert_id = 0;
-		delete_id = 0;
-		dna_id = 0;
-		dna_f_id = 0;
-		dna[dna_id]=O[t];
-		dna_start_t_withstop=dna_start_t = t + 1; //Ye April 21, 2016
-		if(vpath[t] == M1_STATE_1 || vpath[t] == M4_STATE_1) {
-			if(t > 2) dna_start_t_withstop = t - 2;
 		}
 		
-		dna_f[dna_f_id]=O[t];
-		//printf("Note start dna: t = %d, dna_id %d, dna_f_id %d, add %c\n", t, dna_id, dna_f_id, O[t]);
-		start_orf=t+1;
-		prev_match = vpath[t];
+		if (num_N>9){
 
-		if (vpath[t] < M6_STATE){
-			codon_start=1;
-		}else{
-			codon_start=-1;
+			for (i=0; i<NUM_STATE; i++){
+				if (i!=R_STATE){
+					alpha[i][t] = max_dbl;
+					path[i][t] = R_STATE;
+				}
+			}
 		}
 
-    }else if (codon_start!=0 && (vpath[t]==E_STATE || vpath[t]==E_STATE_1 || t==len_seq-1)){
+	}
 
-    	if (vpath[t]==E_STATE || vpath[t]==E_STATE_1){
-			end_t=t+3;
-      	}else{
-	  		//end_t=t+1;
-			/* FGS1.12 start: remove incomplete codon */
-			temp_t = t;
-			while(vpath[temp_t] != M1_STATE && vpath[temp_t] != M4_STATE  && vpath[temp_t] != M1_STATE_1  && vpath[temp_t] != M4_STATE_1){
-				dna_f[dna_f_id] = '\0';
-				dna_f_id--;
+	/***********************************************************/
+	/* backtrack array to find the optimal path                */
+	/***********************************************************/
 
-				dna[dna_id] = '\0';
-				dna_id--;
+	head_short = strtok(head, delimi);
+	if(eflag){
+		fprintf(fp_out, "%s\n", head_short); //use head_short, Ye, April 22, 2016
+	}
+  
 
-				temp_t--;
-			}
-			end_t = temp_t; //??? YY July 2018
-			/* FGS1.12 end: remove incomplete codon */
-      	}
+	/* find the state for O[N] with the highest probability */
+	prob = max_dbl;
+	for (i = 0; i < hmm_ptr->N; i++){
+		if (alpha[i][len_seq-1] < prob){
+			prob = alpha[i][len_seq-1];
+			vpath[len_seq-1] = i;
+		}
+	}
 
-      	if (dna_id > gene_len  ){
-			//these three lines moved here from outside of the loop above, YY July 23, 2018
-			final_score = (alpha[vpath[end_t-4]][end_t-4]- alpha[vpath[start_t+2]][start_t+2] )/(end_t-start_t-5);
-			frame = start_orf%3;
-			if (frame==0) frame=3;
+	/* backtrack the optimal path */
+	for(t=len_seq-2; t>=0; t--){
+		vpath[t] = path[vpath[t+1]][t+1];
+	}
 
-			if (codon_start==1){
-          		if(start_t == dna_start_t - 3) { //add complete start codon to dna, Ye April 21, 2016
-					dna_start_t -= 3;
-	  			}
+	codon_start=0;
+	start_t=-1;
 
-	 			if(refine) { //add refinement of the start codons here, Ye, April 16, 2016
-					int start_old = start_t;
-					codon[0] = 0;
-					strncpy(codon, O + start_old-1, 3);
-					codon[3] = 0;
-					int s = 0;
-					
-					//find the optimal start codon within 30bp up- and downstream of start codon
-					double e_save = 0;
-					int s_save = 0; //initialization, YY July 25 2018
-					
-					while((!(!strcmp(codon, "TAA") || !strcmp(codon, "TAG") || !strcmp(codon, "TGA"))) && (start_old-1-s-35>=0)) {
-						if(!strcmp(codon, "ATG") || !strcmp(codon, "GTG") || !strcmp(codon, "TTG")) {
-							utr[0] = 0;
-							strncpy(utr, O+start_old-1-s-30,63);
-							utr[63] = 0;
-							//printf("check s=%d, codon %s\n", s, codon);
-							double freq_sum = 0;
-							for(j = 0; j < strlen(utr) - 2; j ++) {
-								int idx = trinucleotide(utr[j], utr[j+1], utr[j+2]); 
-								freq_sum -= train_ptr->start[cg][j][idx];
-								//printf("j=%d, key=%c%c%c %d, start %lf\n", j, utr[j], utr[j+1], utr[j+2], idx, train_ptr->start[cg][j][idx]);
-							}
-							if(s == 0) { 
-								e_save = freq_sum; s_save = 0; 
-							} else if(freq_sum < e_save) { 
-								e_save = freq_sum; s_save = -1 * s; 
-							} //positive chain, upstream s_save = -1 * 3
-							//printf("s=%d freq_sum %lf\n", s, freq_sum);
-							//getchar();
-						}	
-						s += 3;
-						codon[0] = 0;
-						strncpy(codon, O+start_old-1-s, 3);
-						codon[3] = 0;
-					}
-					//update start_t YY July 2018
-					if(s_save != 0) {
-						start_t = start_old+s_save;
-						dna_start_t = dna_start_t+s_save;
-					}	
- 	  			}
-	   
-	  			dna_end_t = end_t;
-	  			if(eflag){
-					fprintf(fp_out, "%d\t%d\t+\t%d\t%lf\t", dna_start_t, dna_end_t, frame, final_score);
-					fprintf(fp_out, "I:");
-					for (i=0; i<insert_id; i++){
-						fprintf(fp_out, "%d,", insert[i]);
-					}
-					fprintf(fp_out, "\tD:");
-					for (i=0; i<delete_id; i++){
-						fprintf(fp_out, "%d,", delete[i]);
-					}
-					fprintf(fp_out, "\n");
-	  			}			
-	  
+	int glen = strlen(O);
+	char codon[4], utr[65];
 
-				//update dna before calling get_protein, YY July 2018
-				dna[0] = '\0';
-				strncpy(dna, O + dna_start_t - 1, dna_end_t - dna_start_t + 1);
-				dna[dna_end_t - dna_start_t + 1] = '\0';
-				//end of update dna
-	  
-				get_protein(dna,protein,1, whole_genome);
-				/*
-				if(!(strlen(protein) * 3 == strlen(dna) || strlen(protein) * 3 == strlen(dna) - 3)) {
-					printf("inconsistent protein/dna length: %d %d\n", strlen(protein), strlen(dna));
-					exit(0);
-				}
-				*/
-				fprintf(fp_aa, "%s_%d_%d_+\n", head_short, dna_start_t, dna_end_t);
-				if(dflag){
-					fprintf(fp_dna, "%s_%d_%d_+\n", head_short, dna_start_t, dna_end_t);
-				}
-				fprintf(fp_aa, "%s\n", protein);
+	// een for loop met heel veel code in !!!!
+	for (t=0; t<len_seq; t++){
+		
+		int vpath_hulp = vpath[t];
+
+		if (codon_start == 0 && start_t < 0 &&
+			((vpath_hulp >= M1_STATE &&vpath_hulp <= M6_STATE) ||
+			(vpath_hulp >= M1_STATE_1 && vpath_hulp <= M6_STATE_1) ||
+			vpath_hulp == S_STATE || vpath_hulp == S_STATE_1 )){
 				
-				if(dflag){
-					if (format==0){
-						fprintf(fp_dna, "%s\n", dna);
-					}else if (format==1){
-						fprintf(fp_dna, "%s\n", dna_f);
-					}
-	 			}
-	  
-			}else if (codon_start==-1){
-	  			if(refine) { //add refinement of the start codons here, Ye, April 16, 2016
-					int end_old = end_t; //reverse
-					codon[0] = 0;
-					strncpy(codon, O + end_t-1-2, 3);
-					codon[3] = 0;
-					int s = 0;
-					
-					//find the optimal start codon within 30bp up- and downstream of start codon
-					double e_save = 0;
-					int s_save = 0; //initialization, YY July 25, 2018
-					while((!(!strcmp(codon, "TTA") || !strcmp(codon, "CTA") || !strcmp(codon, "TCA"))) && (end_old-2+s+35 < glen)) {
-						if(!strcmp(codon, "CAT") || !strcmp(codon, "CAC") || !strcmp(codon, "CAA")) {
-							utr[0] = 0;
-							strncpy(utr, O+end_old-1-2+s-30,63);
-							utr[63] = 0;
-							//printf("check s=%d, codon %s\n", s, codon);
-							double freq_sum = 0;
-							for(j = 0; j < strlen(utr) - 2; j ++) {
-								int idx = trinucleotide(utr[j], utr[j+1], utr[j+2]); 
-								freq_sum -= train_ptr->stop1[cg][j][idx]; //stop1?? Ye, April 18, 2016
-								//printf("j=%d, key=%c%c%c %d, stop1 %lf\n", j, utr[j], utr[j+1], utr[j+2], idx, train_ptr->stop1[cg][j][idx]);
-							}
-							if(s == 0) { 
-								e_save = freq_sum; s_save = s; 
-							} else if(freq_sum < e_save) { 
-								e_save = freq_sum; s_save = s; 
-							} //negative chain, s_save = s, add, YY July 2018
-						}
-						s += 3;
-						codon[0] = 0;
-						strncpy(codon, O+end_old-1-2+s, 3);
-						codon[3] = 0;
-					}
-					//update end_t
-					end_t = end_old+s_save;
- 	  			}
-
-				dna_end_t = end_t;
-				if(eflag){
-					fprintf(fp_out, "%d\t%d\t-\t%d\t%lf\t", dna_start_t_withstop, dna_end_t, frame, final_score);
-					fprintf(fp_out, "I:");
-					for (i=0; i<insert_id; i++){
-						fprintf(fp_out, "%d,", insert[i]);
-					}
-					fprintf(fp_out, "\tD:");
-					for (i=0; i<delete_id; i++){
-						fprintf(fp_out, "%d,", delete[i]);
-					}
-					fprintf(fp_out, "\n");
-				}
-	  
-
-				//update dna before calling get_protein, YY July 2018
-				//use dna_end_t & dna_start_w_withstop to avoid incomplete codons & include start/stop codons
-				dna[0] = '\0';
-				strncpy(dna, O + dna_start_t_withstop - 1, dna_end_t - dna_start_t_withstop + 1);
-				dna[dna_end_t - dna_start_t_withstop + 1] = '\0';
-				//end of update dna
-
-				get_protein(dna,protein,-1, whole_genome); //YY July 18, 2018, introduce adjust
-
-				fprintf(fp_aa, "%s_%d_%d_-\n", head_short, dna_start_t_withstop, dna_end_t);
-				if(dflag){
-					fprintf(fp_dna, "%s_%d_%d_-\n", head_short, dna_start_t_withstop, dna_end_t);
-				}
-
-				get_rc_dna(dna, dna1);
-				get_rc_dna_indel(dna_f, dna_f1);
-				fprintf(fp_aa, "%s\n", protein);
-				if(dflag){
-					if (format==0){
-						fprintf(fp_dna, "%s\n", dna1);
-					}else if (format==1){
-						fprintf(fp_dna, "%s\n", dna_f1);
-					}
-				}
-	  
-			}	
-      	}
-     	codon_start=0;
-      	start_t = -1;
-      	end_t = -1;
-      	dna_id = 0;
-      	dna_f_id = 0;
-
-    }else if (codon_start!=0 &&
-	      ((vpath[t]>=M1_STATE && vpath[t]<=M6_STATE) ||
-	       (vpath[t]>=M1_STATE_1 && vpath[t]<=M6_STATE_1)) &&
-	      vpath[t]-prev_match<6){
-
-		if (vpath[t] < prev_match){
-			out_nt = vpath[t]+6-prev_match;
-		}else{
-			out_nt = vpath[t]-prev_match;
+				dna_start_t_withstop=dna_start_t=start_t=t+1;
+				//introduce dna_start_t_withstop YY July 2018
+		
 		}
 
-		for (kk=0; kk<out_nt; kk++){   /* for deleted nt in reads */
-			dna_id ++;
-			dna[dna_id] = 'N';
-			
-				//printf("dna_id %d, dna-len %d\n", dna_id, strlen(dna)); 
-			dna_f_id ++;
-			dna_f[dna_f_id] = 'x';
-			if (kk>0){
-				delete[delete_id]=t+1;
-				delete_id++;
+		if (codon_start == 0 &&
+			(vpath_hulp == M1_STATE || vpath_hulp == M4_STATE ||
+			vpath_hulp == M1_STATE_1 || vpath_hulp == M4_STATE_1)){
+
+			memset(dna,0,300000);
+			memset(dna1,0,300000);
+			memset(dna_f,0,300000);
+			memset(dna_f1,0,300000);
+			memset(protein,0, 100000);
+			memset(insert,0,100);
+			memset(delete,0,100);
+
+			insert_id = 0;
+			delete_id = 0;
+			dna_id = 0;
+			dna_f_id = 0;
+			dna[dna_id]=O[t];
+			dna_start_t_withstop=dna_start_t = t + 1; //Ye April 21, 2016
+			if(vpath_hulp == M1_STATE_1 || vpath_hulp == M4_STATE_1) {
+				if(t > 2) dna_start_t_withstop = t - 2;
 			}
+			
+			dna_f[dna_f_id]=O[t];
+			//printf("Note start dna: t = %d, dna_id %d, dna_f_id %d, add %c\n", t, dna_id, dna_f_id, O[t]);
+			start_orf=t+1;
+			prev_match = vpath_hulp;
+
+			codon_start =- 1;
+			if (vpath_hulp < M6_STATE) codon_start = 1;
+
+		}else if (codon_start != 0 && (vpath_hulp == E_STATE || vpath_hulp == E_STATE_1 || t == len_seq-1)){
+
+			if (vpath_hulp == E_STATE || vpath_hulp == E_STATE_1){
+				end_t=t+3;
+			}else{
+				//end_t=t+1;
+				/* FGS1.12 start: remove incomplete codon */
+				temp_t = t;
+				while(vpath[temp_t] != M1_STATE && vpath[temp_t] != M4_STATE  && vpath[temp_t] != M1_STATE_1  && vpath[temp_t] != M4_STATE_1){
+					dna_f[dna_f_id] = '\0';
+					dna_f_id--;
+
+					dna[dna_id] = '\0';
+					dna_id--;
+
+					temp_t--;
+				}
+				end_t = temp_t; //??? YY July 2018
+				/* FGS1.12 end: remove incomplete codon */
+			}
+
+			if (dna_id > gene_len){
+				//these three lines moved here from outside of the loop above, YY July 23, 2018
+				final_score = (alpha[vpath[end_t-4]][end_t-4]- alpha[vpath[start_t+2]][start_t+2] )/(end_t-start_t-5);
+				frame = start_orf%3;
+				if (frame==0) frame=3;
+
+				if (codon_start==1){
+					if(start_t == dna_start_t - 3) { //add complete start codon to dna, Ye April 21, 2016
+						dna_start_t -= 3;
+					}
+
+					if(refine) { //add refinement of the start codons here, Ye, April 16, 2016
+						int start_old = start_t;
+						codon[0] = 0;
+						strncpy(codon, O + start_old-1, 3);
+						codon[3] = 0;
+						int s = 0;
+						
+						//find the optimal start codon within 30bp up- and downstream of start codon
+						double e_save = 0;
+						int s_save = 0; //initialization, YY July 25 2018
+						
+						while((!(!strcmp(codon, "TAA") || !strcmp(codon, "TAG") || !strcmp(codon, "TGA"))) && (start_old-1-s-35>=0)) {
+							if(!strcmp(codon, "ATG") || !strcmp(codon, "GTG") || !strcmp(codon, "TTG")) {
+								utr[0] = 0;
+								strncpy(utr, O+start_old-1-s-30,63);
+								utr[63] = 0;
+								//printf("check s=%d, codon %s\n", s, codon);
+								double freq_sum = 0;
+								for(j = 0; j < strlen(utr) - 2; j ++) {
+									int idx = trinucleotide(utr[j], utr[j+1], utr[j+2]); 
+									freq_sum -= train_ptr->start[cg][j][idx];
+									//printf("j=%d, key=%c%c%c %d, start %lf\n", j, utr[j], utr[j+1], utr[j+2], idx, train_ptr->start[cg][j][idx]);
+								}
+								if(s == 0) { 
+									e_save = freq_sum; s_save = 0; 
+								} else if(freq_sum < e_save) { 
+									e_save = freq_sum; s_save = -1 * s; 
+								} //positive chain, upstream s_save = -1 * 3
+								//printf("s=%d freq_sum %lf\n", s, freq_sum);
+								//getchar();
+							}	
+							s += 3;
+							codon[0] = 0;
+							strncpy(codon, O+start_old-1-s, 3);
+							codon[3] = 0;
+						}
+						//update start_t YY July 2018
+						if(s_save != 0) {
+							start_t = start_old+s_save;
+							dna_start_t = dna_start_t+s_save;
+						}	
+					}
+		
+					dna_end_t = end_t;
+					if(eflag){
+						fprintf(fp_out, "%d\t%d\t+\t%d\t%lf\t", dna_start_t, dna_end_t, frame, final_score);
+						fprintf(fp_out, "I:");
+						for (i=0; i<insert_id; i++){
+							fprintf(fp_out, "%d,", insert[i]);
+						}
+						fprintf(fp_out, "\tD:");
+						for (i=0; i<delete_id; i++){
+							fprintf(fp_out, "%d,", delete[i]);
+						}
+						fprintf(fp_out, "\n");
+					}			
+		
+
+					//update dna before calling get_protein, YY July 2018
+					dna[0] = '\0';
+					strncpy(dna, O + dna_start_t - 1, dna_end_t - dna_start_t + 1);
+					dna[dna_end_t - dna_start_t + 1] = '\0';
+					//end of update dna
+		
+					get_protein(dna,protein,1, whole_genome);
+					/*
+					if(!(strlen(protein) * 3 == strlen(dna) || strlen(protein) * 3 == strlen(dna) - 3)) {
+						printf("inconsistent protein/dna length: %d %d\n", strlen(protein), strlen(dna));
+						exit(0);
+					}
+					*/
+					fprintf(fp_aa, "%s_%d_%d_+\n", head_short, dna_start_t, dna_end_t);
+					if(dflag){
+						fprintf(fp_dna, "%s_%d_%d_+\n", head_short, dna_start_t, dna_end_t);
+					}
+					fprintf(fp_aa, "%s\n", protein);
+					
+					if(dflag){
+						if (format==0){
+							fprintf(fp_dna, "%s\n", dna);
+						}else if (format==1){
+							fprintf(fp_dna, "%s\n", dna_f);
+						}
+					}
+		
+				}else if (codon_start==-1){
+					if(refine) { //add refinement of the start codons here, Ye, April 16, 2016
+						int end_old = end_t; //reverse
+						codon[0] = 0;
+						strncpy(codon, O + end_t-1-2, 3);
+						codon[3] = 0;
+						int s = 0;
+						
+						//find the optimal start codon within 30bp up- and downstream of start codon
+						double e_save = 0;
+						int s_save = 0; //initialization, YY July 25, 2018
+						while((!(!strcmp(codon, "TTA") || !strcmp(codon, "CTA") || !strcmp(codon, "TCA"))) && (end_old-2+s+35 < glen)) {
+							if(!strcmp(codon, "CAT") || !strcmp(codon, "CAC") || !strcmp(codon, "CAA")) {
+								utr[0] = 0;
+								strncpy(utr, O+end_old-1-2+s-30,63);
+								utr[63] = 0;
+								//printf("check s=%d, codon %s\n", s, codon);
+								double freq_sum = 0;
+								for(j = 0; j < strlen(utr) - 2; j ++) {
+									int idx = trinucleotide(utr[j], utr[j+1], utr[j+2]); 
+									freq_sum -= train_ptr->stop1[cg][j][idx]; //stop1?? Ye, April 18, 2016
+									//printf("j=%d, key=%c%c%c %d, stop1 %lf\n", j, utr[j], utr[j+1], utr[j+2], idx, train_ptr->stop1[cg][j][idx]);
+								}
+								if(s == 0) { 
+									e_save = freq_sum; s_save = s; 
+								} else if(freq_sum < e_save) { 
+									e_save = freq_sum; s_save = s; 
+								} //negative chain, s_save = s, add, YY July 2018
+							}
+							s += 3;
+							codon[0] = 0;
+							strncpy(codon, O+end_old-1-2+s, 3);
+							codon[3] = 0;
+						}
+						//update end_t
+						end_t = end_old+s_save;
+					}
+
+					dna_end_t = end_t;
+					if(eflag){
+						fprintf(fp_out, "%d\t%d\t-\t%d\t%lf\t", dna_start_t_withstop, dna_end_t, frame, final_score);
+						fprintf(fp_out, "I:");
+						for (i=0; i<insert_id; i++){
+							fprintf(fp_out, "%d,", insert[i]);
+						}
+						fprintf(fp_out, "\tD:");
+						for (i=0; i<delete_id; i++){
+							fprintf(fp_out, "%d,", delete[i]);
+						}
+						fprintf(fp_out, "\n");
+					}
+		
+
+					//update dna before calling get_protein, YY July 2018
+					//use dna_end_t & dna_start_w_withstop to avoid incomplete codons & include start/stop codons
+					dna[0] = '\0';
+					strncpy(dna, O + dna_start_t_withstop - 1, dna_end_t - dna_start_t_withstop + 1);
+					dna[dna_end_t - dna_start_t_withstop + 1] = '\0';
+					//end of update dna
+
+					get_protein(dna,protein,-1, whole_genome); //YY July 18, 2018, introduce adjust
+
+					fprintf(fp_aa, "%s_%d_%d_-\n", head_short, dna_start_t_withstop, dna_end_t);
+					if(dflag){
+						fprintf(fp_dna, "%s_%d_%d_-\n", head_short, dna_start_t_withstop, dna_end_t);
+					}
+
+					get_rc_dna(dna, dna1);
+					get_rc_dna_indel(dna_f, dna_f1);
+					fprintf(fp_aa, "%s\n", protein);
+					if(dflag){
+						if (format==0){
+							fprintf(fp_dna, "%s\n", dna1);
+						}else if (format==1){
+							fprintf(fp_dna, "%s\n", dna_f1);
+						}
+					}
+		
+				}	
+			}
+			codon_start=0;
+			start_t = -1;
+			end_t = -1;
+			dna_id = 0;
+			dna_f_id = 0;
+
+		}else if (codon_start!=0 &&
+			((vpath[t]>=M1_STATE && vpath[t]<=M6_STATE) ||
+			(vpath[t]>=M1_STATE_1 && vpath[t]<=M6_STATE_1)) &&
+			vpath[t]-prev_match<6){
+
+			if (vpath[t] < prev_match){
+				out_nt = vpath[t]+6-prev_match;
+			}else{
+				out_nt = vpath[t]-prev_match;
+			}
+
+			for (kk=0; kk<out_nt; kk++){   /* for deleted nt in reads */
+				dna_id ++;
+				dna[dna_id] = 'N';
+				
+					//printf("dna_id %d, dna-len %d\n", dna_id, strlen(dna)); 
+				dna_f_id ++;
+				dna_f[dna_f_id] = 'x';
+				if (kk>0){
+					delete[delete_id]=t+1;
+					delete_id++;
+				}
+			}
+			dna[dna_id]=O[t];
+			//printf("dna_id %d, add %d %c dna-len %d\n", dna_id, t, O[t], strlen(dna)); 
+			dna_f[dna_f_id]=O[t];
+			prev_match = vpath[t];
+
+		}else if (codon_start!=0 &&
+			((vpath[t]>=I1_STATE && vpath[t]<=I6_STATE) ||
+			(vpath[t]>=I1_STATE_1 && vpath[t]<=I6_STATE_1))){
+			dna_f_id ++;
+			dna_f[dna_f_id] = tolower(O[t]);
+			insert[insert_id]=t+1;
+			insert_id++;
+
+		}else if (codon_start!=0 && vpath[t]==R_STATE){
+			/* for long NNNNNNNNN, pretend R state */
+			codon_start=0;
+			start_t=-1;
+			end_t = -1;
+			dna_id=0;
+			dna_f_id=0;
+
 		}
-		dna[dna_id]=O[t];
-		//printf("dna_id %d, add %d %c dna-len %d\n", dna_id, t, O[t], strlen(dna)); 
-		dna_f[dna_f_id]=O[t];
-		prev_match = vpath[t];
+	}
 
-    }else if (codon_start!=0 &&
-	      ((vpath[t]>=I1_STATE && vpath[t]<=I6_STATE) ||
-	       (vpath[t]>=I1_STATE_1 && vpath[t]<=I6_STATE_1))){
-		dna_f_id ++;
-		dna_f[dna_f_id] = tolower(O[t]);
-		insert[insert_id]=t+1;
-		insert_id++;
-
-    }else if (codon_start!=0 && vpath[t]==R_STATE){
-		/* for long NNNNNNNNN, pretend R state */
-		codon_start=0;
-		start_t=-1;
-		end_t = -1;
-		dna_id=0;
-		dna_f_id=0;
-
-    }
-  }
-
-  free_dmatrix(alpha, hmm_ptr->N);
-  free_imatrix(path, hmm_ptr->N);
-  free_ivector(vpath);
+	free_dmatrix(alpha, hmm_ptr->N);
+	free_imatrix(path, hmm_ptr->N);
+	free_ivector(vpath);
 }
 
 int get_prob_from_cg(HMM *hmm_ptr, TRAIN *train_ptr, char *O){ //change from void to int, Ye, April 18, 2016
@@ -1141,7 +1126,7 @@ int get_prob_from_cg(HMM *hmm_ptr, TRAIN *train_ptr, char *O){ //change from voi
 	return cg_count;
 }
 
-void get_train_from_file(char *filename, HMM *hmm_ptr, char *mfilename, char *mfilename1, char *nfilename,
+void get_train_from_file(char *filename, HMM *hmm_ptr, char *mfilename, char *mfilename1, char *nfilename, 
 			 char *sfilename,char *pfilename,char *s1filename,char *p1filename,char *dfilename, TRAIN *train_ptr){
 
   int i, j, k, p;

@@ -156,7 +156,7 @@ int tr2int (char *tr){
 
 // aanpassing gedaan aan de code
 int nt2int (char nt){
-
+  
   int result;
   // small change to only evaluate letters and no capital letters
   char hulp = nt|0x20;
@@ -205,13 +205,11 @@ int nt2int_rc_indel (char nt){
 //aanpassing gedaan aan de code
 int trinucleotide (char a, char b, char c){
 
-  int freq_id;
+  int freq_id = 0;
   char hulp_a = a|0x20;
-  if      (hulp_a == 'a'){  freq_id = 0;}
-  else if (hulp_a == 'c'){  freq_id = 16;}
+  if      (hulp_a == 'c'){  freq_id = 16;}
   else if (hulp_a == 'g'){  freq_id = 32;}
   else if (hulp_a == 't'){  freq_id = 48;}
-  else { freq_id = 0;}
 
   char hulp_b = b|0x20;
   if      (hulp_b == 'a'){  freq_id += 0;}
